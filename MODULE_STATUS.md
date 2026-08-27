@@ -34,7 +34,7 @@ Git history.
 - Tools/orchestration/SSE: `S20260827T200307Z_T077-T078-T079-T080-T081_ai-tools-orchestration-stream`
 - Assistant UI/AI safeguards gate: `S20260827T201946Z_T082-T083-T084-T085_assistant-ui-and-ai-gate`
 
-The latest baseline verification recorded 166 backend tests passing and 20
+The latest baseline verification recorded 168 backend tests passing and 20
 frontend tests passing in the web image build. A live Gemini credential is
 intentionally not required for automated verification; the manual provider
 smoke check remains an evaluator step.

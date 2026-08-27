@@ -33,6 +33,8 @@ export const ms = {
   "route.verifyDetail": "Muat semula halaman dan cuba lagi.",
   "route.notFoundTitle": "Halaman tidak ditemui",
   "route.notFoundDetail": "Halaman LibraryOS itu tidak wujud.",
+  "offline.message": "Anda di luar talian. Halaman LibraryOS yang dicache kekal tersedia; data langsung akan kembali apabila anda bersambung semula.",
+  "offline.reconnected": "Sambungan dipulihkan. Data perpustakaan langsung tersedia semula.",
   "auth.loginEyebrow": "Selamat kembali",
   "auth.loginTitle": "Log masuk ke LibraryOS",
   "auth.loginDescription": "Gunakan akaun perpustakaan anda untuk mengurus bacaan dan aktiviti komuniti.",

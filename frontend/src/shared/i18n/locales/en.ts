@@ -31,6 +31,8 @@ export const en = {
   "route.verifyDetail": "Refresh the page and try again.",
   "route.notFoundTitle": "Page not found",
   "route.notFoundDetail": "That LibraryOS page does not exist.",
+  "offline.message": "You’re offline. Cached LibraryOS pages remain available; live data will return when you reconnect.",
+  "offline.reconnected": "Connection restored. Live library data is available again.",
   "auth.loginEyebrow": "Welcome back",
   "auth.loginTitle": "Log in to LibraryOS",
   "auth.loginDescription": "Use your library account to manage reading and community activity.",

@@ -19,6 +19,7 @@ import { OwnProfilePage, PeoplePage, PublicProfilePage } from "../../features/us
 import { AssistantPage } from "../../features/assistant";
 import { Button, Card, LinkButton, PageHeader } from "../../shared/components";
 import { LanguageSwitcher, useTranslation } from "../../shared/i18n";
+import { OfflineStatus } from "../OfflineStatus";
 
 function AppShell() {
   const { user, isLoading, logout } = useAuth();
@@ -38,6 +39,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink">
+      <OfflineStatus />
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <Link className="text-xl font-semibold tracking-tight" to="/">

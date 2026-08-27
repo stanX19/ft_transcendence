@@ -33,6 +33,8 @@ export const zh = {
   "route.verifyDetail": "请刷新页面后重试。",
   "route.notFoundTitle": "找不到页面",
   "route.notFoundDetail": "该 LibraryOS 页面不存在。",
+  "offline.message": "您当前处于离线状态。已缓存的 LibraryOS 页面仍可使用；重新连接后将恢复实时数据。",
+  "offline.reconnected": "连接已恢复，实时图书馆数据现已可用。",
   "auth.loginEyebrow": "欢迎回来",
   "auth.loginTitle": "登录 LibraryOS",
   "auth.loginDescription": "使用您的图书馆账户管理阅读和社区活动。",

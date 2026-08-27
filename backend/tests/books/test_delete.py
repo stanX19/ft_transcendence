@@ -32,13 +32,35 @@ def test_librarian_can_delete_a_safe_book_and_missing_book_is_not_found(
     assert missing.json()["error"]["code"] == "not_found"
 
 
-def test_book_with_borrowed_inventory_is_not_deleted(role_client, create_book) -> None:
+def test_book_with_active_loan_is_not_deleted(
+    role_client,
+    create_book,
+    db_session,
+) -> None:
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select
+
+    from app.features.loans.models import Loan
+    from app.features.users.models import User
+
     client = role_client("ADMIN")
     book = create_book(
         title="Active Loan Delete Target",
         total_copies=2,
         available_copies=1,
     )
+    user = db_session.scalar(select(User).order_by(User.id.desc()))
+    assert user is not None
+    borrowed_at = datetime.now(timezone.utc)
+    db_session.add(
+        Loan(
+            user_id=user.id,
+            book_id=book.id,
+            borrowed_at=borrowed_at,
+            due_at=borrowed_at + timedelta(days=14),
+        )
+    )
+    db_session.commit()
 
     response = client.delete(f"/api/books/{book.id}")
 

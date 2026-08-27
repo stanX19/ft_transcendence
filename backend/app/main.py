@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.core.errors import register_error_handlers
 from app.features.auth.router import router as auth_router
 from app.features.books.router import router as books_router
+from app.features.loans.router import router as loans_router
 from app.features.users.router import router as users_router
 
 
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(books_router)
+    app.include_router(loans_router)
     app.include_router(users_router)
 
     @app.get("/api/health", tags=["foundation"])

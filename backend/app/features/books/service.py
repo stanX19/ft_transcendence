@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.features.books.models import Book
 from app.features.books.schemas import BookCreate, BookUpdate, SortOption
+from app.features.loans.models import Loan
 
 
 class BookInventoryConflict(Exception):
@@ -147,15 +148,23 @@ def update_book(db: Session, book: Book, payload: BookUpdate) -> Book:
 
 
 def delete_book(db: Session, book: Book) -> None:
-    """Delete a safe book.
+    """Delete a book only when no active loan references it."""
 
-    Once the Loan model exists, replace this conservative borrowed-inventory
-    check with a query for ``Loan.returned_at.is_(None)`` by ``book_id``. Until
-    then, a non-zero borrowed count must block deletion so inventory cannot be
-    orphaned by a catalog edit.
-    """
-
-    if book.available_copies < book.total_copies:
+    locked_book = db.scalar(
+        select(Book)
+        .where(Book.id == book.id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if locked_book is None:
         raise BookHasActiveLoan
-    db.delete(book)
+    active_loan_id = db.scalar(
+        select(Loan.id).where(
+            Loan.book_id == locked_book.id,
+            Loan.returned_at.is_(None),
+        )
+    )
+    if active_loan_id is not None:
+        raise BookHasActiveLoan
+    db.delete(locked_book)
     db.commit()

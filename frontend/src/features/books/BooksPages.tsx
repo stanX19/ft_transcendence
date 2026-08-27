@@ -326,6 +326,9 @@ export function BookDetailPage() {
   const { user } = useAuth();
   const [editing, setEditing] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [borrowError, setBorrowError] = useState<string | null>(null);
+  const [borrowMessage, setBorrowMessage] = useState<string | null>(null);
+  const [isBorrowing, setIsBorrowing] = useState(false);
   const bookQuery = useQuery({
     queryKey: ["books", bookId],
     queryFn: () => apiRequest<BookResponse>(`/api/books/${bookId}`),
@@ -341,6 +344,26 @@ export function BookDetailPage() {
     return <PageMessage title={notFound ? "Book not found" : "Book unavailable"} detail={notFound ? "This catalog record does not exist." : "Please try again in a moment."} />;
   }
   if (!book) return <PageMessage title="Book unavailable" detail="No catalog data was returned." />;
+
+  async function borrowBook() {
+    setBorrowError(null);
+    setBorrowMessage(null);
+    setIsBorrowing(true);
+    try {
+      await apiRequest(`/api/books/${book.id}/borrow`, { method: "POST" });
+      setBorrowMessage("Loan recorded. This book is now in My loans.");
+      await queryClient.invalidateQueries({ queryKey: ["books"] });
+      await queryClient.invalidateQueries({ queryKey: ["loans", "me"] });
+    } catch (error) {
+      setBorrowError(
+        error instanceof ApiError && error.status === 409
+          ? "This book is no longer available for you to borrow."
+          : "We could not borrow this book. Please try again.",
+      );
+    } finally {
+      setIsBorrowing(false);
+    }
+  }
 
   async function removeBook() {
     setDeleteError(null);
@@ -375,6 +398,25 @@ export function BookDetailPage() {
             {book.publication_year ? <div className="flex justify-between gap-4"><dt>Published</dt><dd className="font-medium text-slate-950">{book.publication_year}</dd></div> : null}
             {book.isbn ? <div className="flex justify-between gap-4"><dt>ISBN</dt><dd className="font-medium text-slate-950">{book.isbn}</dd></div> : null}
           </dl>
+        </div>
+        <div className="mt-8 border-t border-slate-100 pt-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Borrow this book</h2>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {user ? (
+              <button
+                className="rounded-xl bg-sky-700 px-4 py-2.5 font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isBorrowing || book.available_copies === 0}
+                onClick={() => void borrowBook()}
+                type="button"
+              >
+                {isBorrowing ? "Borrowing…" : book.available_copies > 0 ? "Borrow book" : "Currently unavailable"}
+              </button>
+            ) : (
+              <Link className="rounded-xl bg-sky-700 px-4 py-2.5 font-medium text-white hover:bg-sky-800" to="/login">Log in to borrow</Link>
+            )}
+          </div>
+          {borrowMessage ? <p className="mt-3 text-sm text-emerald-700" role="status">{borrowMessage}</p> : null}
+          {borrowError ? <p className="mt-3 text-sm text-rose-700" role="alert">{borrowError}</p> : null}
         </div>
         {canManageBooks(user?.role) ? (
           <div className="mt-8 border-t border-slate-100 pt-6">

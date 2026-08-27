@@ -10,12 +10,14 @@ export interface ApiErrorBody {
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly body: unknown;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, body: unknown = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.body = body;
   }
 }
 
@@ -46,6 +48,7 @@ export async function apiRequest<T>(
       response.status,
       errorBody.error?.code ?? "request_failed",
       errorBody.error?.message ?? "The request could not be completed.",
+      body,
     );
   }
 

@@ -21,6 +21,7 @@ _HTTP_ERROR_MESSAGES: Mapping[int, tuple[str, str]] = {
     409: ("conflict", "The request conflicts with the current state."),
     422: ("validation_error", "The request contains invalid or missing values."),
     429: ("rate_limited", "Too many requests."),
+    413: ("payload_too_large", "The uploaded file is too large."),
 }
 
 

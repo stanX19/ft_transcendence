@@ -10,7 +10,7 @@ import {
 
 import { LoginPage, RegisterPage } from "../../features/auth/AuthPages";
 import { BookDetailPage, BooksPage } from "../../features/books";
-import { AdminUsersPage } from "../../features/admin";
+import { AdminUsersPage, ImportExportPage } from "../../features/admin";
 import { FriendsPage } from "../../features/friends";
 import { LoansPage } from "../../features/loans";
 import { useAuth } from "../../features/auth";
@@ -20,6 +20,7 @@ import { OwnProfilePage, PeoplePage, PublicProfilePage } from "../../features/us
 function AppShell() {
   const { user, isLoading, logout } = useAuth();
   const navigate = useNavigate();
+  const canManageCatalog = user?.role === "LIBRARIAN" || user?.role === "ADMIN";
 
   async function handleLogout() {
     try {
@@ -46,6 +47,7 @@ function AppShell() {
                 <Link className="text-slate-600 hover:text-slate-950" to="/friends">Friends</Link>
                 <Link className="text-slate-600 hover:text-slate-950" to="/loans">My loans</Link>
                 <Link className="text-slate-600 hover:text-slate-950" to="/profile">Profile</Link>
+                {canManageCatalog ? <Link className="text-slate-600 hover:text-slate-950" to="/admin/import-export">Import / Export</Link> : null}
                 {user.role === "ADMIN" ? <Link className="text-slate-600 hover:text-slate-950" to="/admin/users">Admin</Link> : null}
                 <button className="font-medium text-sky-700 hover:text-sky-900" onClick={handleLogout} type="button">
                   Log out
@@ -148,6 +150,7 @@ const router = createBrowserRouter([
           { path: "friends", element: <FriendsPage /> },
           { path: "loans", element: <LoansPage /> },
           { path: "admin/users", element: <AdminUsersPage /> },
+          { path: "admin/import-export", element: <ImportExportPage /> },
         ],
       },
       { path: "*", element: <RouteMessage title="Page not found" detail="That LibraryOS page does not exist." /> },

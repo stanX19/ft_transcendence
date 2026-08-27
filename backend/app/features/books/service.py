@@ -97,7 +97,14 @@ def list_books(
     return rows, total
 
 
-def create_book(db: Session, payload: BookCreate) -> Book:
+def create_book(
+    db: Session,
+    payload: BookCreate,
+    *,
+    commit: bool = True,
+) -> Book:
+    """Create a book, optionally leaving transaction ownership to the caller."""
+
     values = payload.model_dump()
     title = values["title"]
     supplied_slug = values.pop("slug")
@@ -106,12 +113,22 @@ def create_book(db: Session, payload: BookCreate) -> Book:
     values["available_copies"] = values["total_copies"]
     book = Book(**values)
     db.add(book)
-    db.commit()
-    db.refresh(book)
+    db.flush()
+    if commit:
+        db.commit()
+        db.refresh(book)
     return book
 
 
-def update_book(db: Session, book: Book, payload: BookUpdate) -> Book:
+def update_book(
+    db: Session,
+    book: Book,
+    payload: BookUpdate,
+    *,
+    commit: bool = True,
+) -> Book:
+    """Update a book, optionally leaving transaction ownership to the caller."""
+
     values = payload.model_dump(exclude_unset=True)
     # Inventory is derived from the number of borrowed copies and cannot be
     # directly edited by a client, even when sent as part of a full record.
@@ -142,8 +159,10 @@ def update_book(db: Session, book: Book, payload: BookUpdate) -> Book:
             setattr(book, field, value)
 
     book.updated_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(book)
+    db.flush()
+    if commit:
+        db.commit()
+        db.refresh(book)
     return book
 
 

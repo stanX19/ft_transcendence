@@ -3,6 +3,21 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiRequest } from "../../shared/api";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  ErrorAlert,
+  FormField,
+  Input,
+  LinkButton,
+  LoadingState,
+  Notice,
+  PageHeader,
+  Select,
+  TextArea,
+} from "../../shared/components";
 import { FileUpload, type UploadedFile } from "../files";
 import { useAuth } from "../auth";
 
@@ -132,79 +147,69 @@ function BookForm({
   }
 
   return (
-    <form className="mt-6 space-y-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-5" onSubmit={submit}>
+    <form className="mt-6 space-y-4 rounded-panel border border-accent-100 bg-accent-50/70 p-5 shadow-panel" onSubmit={submit}>
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-slate-950">{book ? "Edit book" : "Add book"}</h2>
+        <h2 className="text-lg font-semibold text-ink">{book ? "Edit book" : "Add book"}</h2>
         {onCancel ? (
-          <button className="text-sm font-medium text-slate-600 hover:text-slate-950" onClick={onCancel} type="button">
+          <Button onClick={onCancel} size="sm" variant="ghost" type="button">
             Cancel
-          </button>
+          </Button>
         ) : null}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-medium text-slate-800">
-          Title
-          <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" minLength={1} onChange={(event) => update("title", event.target.value)} required value={values.title} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Author
-          <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" minLength={1} onChange={(event) => update("author", event.target.value)} required value={values.author} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Category
-          <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" minLength={1} onChange={(event) => update("category", event.target.value)} required value={values.category} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          ISBN <span className="font-normal text-slate-500">(optional)</span>
-          <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" onChange={(event) => update("isbn", event.target.value)} value={values.isbn} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Publication year <span className="font-normal text-slate-500">(optional)</span>
-          <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" max={3000} min={0} onChange={(event) => update("publication_year", event.target.value)} type="number" value={values.publication_year} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Total copies
-          <input className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" min={0} onChange={(event) => update("total_copies", event.target.value)} required type="number" value={values.total_copies} />
-        </label>
+        <FormField htmlFor="book-title" label="Title">
+          <Input id="book-title" minLength={1} onChange={(event) => update("title", event.target.value)} required value={values.title} />
+        </FormField>
+        <FormField htmlFor="book-author" label="Author">
+          <Input id="book-author" minLength={1} onChange={(event) => update("author", event.target.value)} required value={values.author} />
+        </FormField>
+        <FormField htmlFor="book-category" label="Category">
+          <Input id="book-category" minLength={1} onChange={(event) => update("category", event.target.value)} required value={values.category} />
+        </FormField>
+        <FormField htmlFor="book-isbn" label={<>ISBN <span className="font-normal text-muted">(optional)</span></>}>
+          <Input id="book-isbn" onChange={(event) => update("isbn", event.target.value)} value={values.isbn} />
+        </FormField>
+        <FormField htmlFor="book-publication-year" label={<>Publication year <span className="font-normal text-muted">(optional)</span></>}>
+          <Input id="book-publication-year" max={3000} min={0} onChange={(event) => update("publication_year", event.target.value)} type="number" value={values.publication_year} />
+        </FormField>
+        <FormField htmlFor="book-total-copies" label="Total copies">
+          <Input id="book-total-copies" min={0} onChange={(event) => update("total_copies", event.target.value)} required type="number" value={values.total_copies} />
+        </FormField>
       </div>
-      <label className="block text-sm font-medium text-slate-800">
-        Description
-        <textarea className="mt-2 min-h-28 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" minLength={1} onChange={(event) => update("description", event.target.value)} required value={values.description} />
-      </label>
-      {error ? <p className="text-sm text-rose-700" role="alert">{error}</p> : null}
-      <button className="rounded-xl bg-slate-950 px-4 py-2.5 font-medium text-white disabled:opacity-60" disabled={isSaving} type="submit">
+      <FormField htmlFor="book-description" label="Description">
+        <TextArea id="book-description" minLength={1} onChange={(event) => update("description", event.target.value)} required value={values.description} />
+      </FormField>
+      {error ? <ErrorAlert message={error} /> : null}
+      <Button disabled={isSaving} loading={isSaving} type="submit">
         {isSaving ? "Saving…" : book ? "Save changes" : "Add book"}
-      </button>
+      </Button>
     </form>
   );
 }
 
 function BookCard({ book }: { book: Book }) {
   return (
-    <Link className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300" to={`/books/${book.id}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-sky-700">{book.category}</p>
-          <h2 className="mt-2 text-lg font-semibold text-slate-950">{book.title}</h2>
-          <p className="mt-1 text-sm text-slate-600">{book.author}</p>
+    <Link className="block transition hover:-translate-y-0.5" to={`/books/${book.id}`}>
+      <Card className="h-full p-5 transition hover:border-accent-100">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-accent-700">{book.category}</p>
+            <h2 className="mt-2 text-lg font-semibold text-ink">{book.title}</h2>
+            <p className="mt-1 text-sm text-muted">{book.author}</p>
+          </div>
+          <Badge variant={book.available_copies > 0 ? "success" : "neutral"}>
+            {book.available_copies > 0 ? "Available" : "Checked out"}
+          </Badge>
         </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${book.available_copies > 0 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-          {book.available_copies > 0 ? "Available" : "Checked out"}
-        </span>
-      </div>
-      <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-600">{book.description}</p>
-      <p className="mt-4 text-sm font-medium text-slate-700">{formatAvailability(book)}</p>
+        <p className="mt-4 line-clamp-2 text-sm leading-6 text-muted">{book.description}</p>
+        <p className="mt-4 text-sm font-medium text-ink-soft">{formatAvailability(book)}</p>
+      </Card>
     </Link>
   );
 }
 
 function PageMessage({ title, detail }: { title: string; detail: string }) {
-  return (
-    <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-      <h1 className="text-xl font-semibold text-slate-950">{title}</h1>
-      <p className="mt-2 text-slate-600">{detail}</p>
-    </div>
-  );
+  return <EmptyState detail={detail} title={title} />;
 }
 
 export function BooksPage() {
@@ -244,18 +249,12 @@ export function BooksPage() {
 
   return (
     <section className="mx-auto max-w-6xl">
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">Library catalog</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Browse books</h1>
-          <p className="mt-3 max-w-2xl text-slate-600">Search the local collection by title, author, description, or ISBN.</p>
-        </div>
-        {canManageBooks(user?.role) ? (
-          <button className="rounded-xl bg-slate-950 px-4 py-2.5 font-medium text-white" onClick={() => setShowCreate((current) => !current)} type="button">
-            {showCreate ? "Close form" : "Add book"}
-          </button>
-        ) : null}
-      </div>
+      <PageHeader
+        actions={canManageBooks(user?.role) ? <Button onClick={() => setShowCreate((current) => !current)}>{showCreate ? "Close form" : "Add book"}</Button> : null}
+        description="Search the local collection by title, author, description, or ISBN."
+        eyebrow="Library catalog"
+        title="Browse books"
+      />
 
       {showCreate ? (
         <BookForm
@@ -267,51 +266,48 @@ export function BooksPage() {
         />
       ) : null}
 
-      <form className="mt-8 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5" onSubmit={search}>
-        <label className="text-sm font-medium text-slate-800 lg:col-span-2">
-          Search catalog
-          <input className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" onChange={(event) => setSearchInput(event.target.value)} placeholder="Title, author, topic, ISBN" value={searchInput} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Author
-          <input className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" onChange={(event) => updateFilter("author", event.target.value)} placeholder="Filter author" value={filters.author} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Category
-          <input className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5" onChange={(event) => updateFilter("category", event.target.value)} placeholder="Filter category" value={filters.category} />
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Availability
-          <select className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" onChange={(event) => updateFilter("available", event.target.value)} value={filters.available}>
+      <Card className="mt-8 p-4">
+        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" onSubmit={search}>
+        <FormField className="lg:col-span-2" htmlFor="catalog-search" label="Search catalog">
+          <Input id="catalog-search" onChange={(event) => setSearchInput(event.target.value)} placeholder="Title, author, topic, ISBN" value={searchInput} />
+        </FormField>
+        <FormField htmlFor="catalog-author" label="Author">
+          <Input id="catalog-author" onChange={(event) => updateFilter("author", event.target.value)} placeholder="Filter author" value={filters.author} />
+        </FormField>
+        <FormField htmlFor="catalog-category" label="Category">
+          <Input id="catalog-category" onChange={(event) => updateFilter("category", event.target.value)} placeholder="Filter category" value={filters.category} />
+        </FormField>
+        <FormField htmlFor="catalog-availability" label="Availability">
+          <Select id="catalog-availability" onChange={(event) => updateFilter("available", event.target.value)} value={filters.available}>
             <option value="all">All books</option>
             <option value="true">Available now</option>
             <option value="false">Checked out</option>
-          </select>
-        </label>
-        <label className="text-sm font-medium text-slate-800">
-          Sort by
-          <select className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" onChange={(event) => updateFilter("sort", event.target.value)} value={filters.sort}>
+          </Select>
+        </FormField>
+        <FormField htmlFor="catalog-sort" label="Sort by">
+          <Select id="catalog-sort" onChange={(event) => updateFilter("sort", event.target.value)} value={filters.sort}>
             <option value="title">Title</option>
             <option value="author">Author</option>
             <option value="newest">Newest</option>
-          </select>
-        </label>
-        <button className="rounded-xl bg-sky-700 px-4 py-2.5 font-medium text-white hover:bg-sky-800 sm:col-span-2 lg:col-span-5 lg:justify-self-end" type="submit">Search</button>
-      </form>
+          </Select>
+        </FormField>
+        <Button className="sm:col-span-2 lg:col-span-5 lg:justify-self-end" type="submit" variant="accent">Search</Button>
+        </form>
+      </Card>
 
-      {booksQuery.isLoading ? <PageMessage title="Loading catalog…" detail="Fetching books from the library collection." /> : null}
-      {booksQuery.error ? <PageMessage title="Catalog unavailable" detail="We could not load the books. Please try again." /> : null}
+      {booksQuery.isLoading ? <LoadingState detail="Fetching books from the library collection." title="Loading catalog…" /> : null}
+      {booksQuery.error ? <ErrorAlert className="mt-8" message={<><strong>Catalog unavailable.</strong> We could not load the books. Please try again.</>} /> : null}
       {booksQuery.data && booksQuery.data.items.length === 0 ? <PageMessage title="No books found" detail="Try a broader search or clear one of the filters." /> : null}
       {booksQuery.data && booksQuery.data.items.length > 0 ? (
         <>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {booksQuery.data.items.map((book) => <BookCard book={book} key={book.id} />)}
           </div>
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-600">
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-sm text-muted">
             <span>Page {booksQuery.data.page} of {totalPages} · {booksQuery.data.total} books</span>
             <div className="flex gap-2">
-              <button className="rounded-lg border border-slate-300 px-3 py-2 disabled:opacity-40" disabled={filters.page <= 1} onClick={() => pageChange(filters.page - 1)} type="button">Previous</button>
-              <button className="rounded-lg border border-slate-300 px-3 py-2 disabled:opacity-40" disabled={filters.page >= totalPages} onClick={() => pageChange(filters.page + 1)} type="button">Next</button>
+              <Button disabled={filters.page <= 1} onClick={() => pageChange(filters.page - 1)} size="sm" variant="secondary" type="button">Previous</Button>
+              <Button disabled={filters.page >= totalPages} onClick={() => pageChange(filters.page + 1)} size="sm" variant="secondary" type="button">Next</Button>
             </div>
           </div>
         </>
@@ -341,7 +337,7 @@ export function BookDetailPage() {
   });
   const book = bookQuery.data?.book;
 
-  if (bookQuery.isLoading) return <PageMessage title="Loading book…" detail="Fetching the catalog record." />;
+  if (bookQuery.isLoading) return <LoadingState detail="Fetching the catalog record." title="Loading book…" />;
   if (bookQuery.error) {
     const notFound = bookQuery.error instanceof ApiError && bookQuery.error.status === 404;
     return <PageMessage title={notFound ? "Book not found" : "Book unavailable"} detail={notFound ? "This catalog record does not exist." : "Please try again in a moment."} />;
@@ -396,70 +392,70 @@ export function BookDetailPage() {
 
   return (
     <section className="mx-auto max-w-4xl">
-      <Link className="text-sm font-medium text-sky-700 hover:text-sky-900" to="/books">← Back to catalog</Link>
-      <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
+      <LinkButton size="sm" to="/books" variant="ghost">← Back to catalog</LinkButton>
+      <Card className="mt-6 p-8 sm:p-10">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">{book.category}</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{book.title}</h1>
-            <p className="mt-2 text-lg text-slate-600">{book.author}</p>
+            <Badge variant="accent">{book.category}</Badge>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink">{book.title}</h1>
+            <p className="mt-2 text-lg text-muted">{book.author}</p>
           </div>
-          <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">{formatAvailability(book)}</span>
+          <Badge variant={book.available_copies > 0 ? "success" : "neutral"}>{formatAvailability(book)}</Badge>
         </div>
-        <div className="mt-8 grid gap-8 border-t border-slate-100 pt-8 sm:grid-cols-[1fr_16rem]">
+        <div className="mt-8 grid gap-8 border-t border-line pt-8 sm:grid-cols-[1fr_16rem]">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">About this book</h2>
-            <p className="mt-3 whitespace-pre-wrap leading-7 text-slate-700">{book.description}</p>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">About this book</h2>
+            <p className="mt-3 whitespace-pre-wrap leading-7 text-ink-soft">{book.description}</p>
           </div>
-          <dl className="space-y-3 text-sm text-slate-600">
-            <div className="flex justify-between gap-4"><dt>Category</dt><dd className="font-medium text-slate-950">{book.category}</dd></div>
-            {book.publication_year ? <div className="flex justify-between gap-4"><dt>Published</dt><dd className="font-medium text-slate-950">{book.publication_year}</dd></div> : null}
-            {book.isbn ? <div className="flex justify-between gap-4"><dt>ISBN</dt><dd className="font-medium text-slate-950">{book.isbn}</dd></div> : null}
+          <dl className="space-y-3 text-sm text-muted">
+            <div className="flex justify-between gap-4"><dt>Category</dt><dd className="font-medium text-ink">{book.category}</dd></div>
+            {book.publication_year ? <div className="flex justify-between gap-4"><dt>Published</dt><dd className="font-medium text-ink">{book.publication_year}</dd></div> : null}
+            {book.isbn ? <div className="flex justify-between gap-4"><dt>ISBN</dt><dd className="font-medium text-ink">{book.isbn}</dd></div> : null}
           </dl>
         </div>
-        <div className="mt-8 border-t border-slate-100 pt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Borrow this book</h2>
+        <div className="mt-8 border-t border-line pt-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Borrow this book</h2>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {user ? (
-              <button
-                className="rounded-xl bg-sky-700 px-4 py-2.5 font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
+              <Button
                 disabled={isBorrowing || book.available_copies === 0}
+                loading={isBorrowing}
                 onClick={() => void borrowBook()}
                 type="button"
               >
                 {isBorrowing ? "Borrowing…" : book.available_copies > 0 ? "Borrow book" : "Currently unavailable"}
-              </button>
+              </Button>
             ) : (
-              <Link className="rounded-xl bg-sky-700 px-4 py-2.5 font-medium text-white hover:bg-sky-800" to="/login">Log in to borrow</Link>
+              <LinkButton to="/login" variant="accent">Log in to borrow</LinkButton>
             )}
           </div>
-          {borrowMessage ? <p className="mt-3 text-sm text-emerald-700" role="status">{borrowMessage}</p> : null}
-          {borrowError ? <p className="mt-3 text-sm text-rose-700" role="alert">{borrowError}</p> : null}
+          {borrowMessage ? <Notice className="mt-3" message={borrowMessage} /> : null}
+          {borrowError ? <ErrorAlert className="mt-3" message={borrowError} /> : null}
         </div>
         {canManageBooks(user?.role) ? (
-          <div className="mt-8 border-t border-slate-100 pt-6">
+          <div className="mt-8 border-t border-line pt-6">
             <div className="flex flex-wrap gap-3">
-              <button className="rounded-xl border border-slate-300 px-4 py-2.5 font-medium text-slate-700" onClick={() => setEditing((current) => !current)} type="button">{editing ? "Close editor" : "Edit book"}</button>
-              <button className="rounded-xl border border-rose-200 px-4 py-2.5 font-medium text-rose-700" onClick={() => void removeBook()} type="button">Delete book</button>
+              <Button onClick={() => setEditing((current) => !current)} variant="secondary" type="button">{editing ? "Close editor" : "Edit book"}</Button>
+              <Button onClick={() => void removeBook()} variant="danger" type="button">Delete book</Button>
             </div>
-            {deleteError ? <p className="mt-3 text-sm text-rose-700" role="alert">{deleteError}</p> : null}
+            {deleteError ? <ErrorAlert className="mt-3" message={deleteError} /> : null}
             {editing ? <BookForm book={book} onCancel={() => setEditing(false)} onSaved={(saved) => { setEditing(false); queryClient.setQueryData(["books", bookId], { book: saved }); }} /> : null}
-            <div className="mt-8 border-t border-slate-100 pt-6">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Book files</h2>
-              <p className="mt-2 text-sm text-slate-600">Add a cover preview or a reference PDF. Files are served through protected application routes.</p>
+            <div className="mt-8 border-t border-line pt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Book files</h2>
+              <p className="mt-2 text-sm text-muted">Add a cover preview or a reference PDF. Files are served through protected application routes.</p>
               <div className="mt-4 space-y-3">
                 <FileUpload accept="image/jpeg,image/png,image/webp" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_COVER" }} helper="JPEG, PNG, or WebP. Maximum 10 MB." label="Book cover" onUploaded={addAsset} />
                 <FileUpload accept="application/pdf" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_DOCUMENT" }} helper="PDF only. Maximum 10 MB." label="Book document" onUploaded={addAsset} />
               </div>
-              {fileError ? <p className="mt-3 text-sm text-rose-700" role="alert">{fileError}</p> : null}
+              {fileError ? <ErrorAlert className="mt-3" message={fileError} /> : null}
               {assets.length > 0 ? (
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   {assets.map((asset) => (
-                    <div className="rounded-xl border border-slate-200 p-3" key={asset.id}>
-                      {asset.mime_type.startsWith("image/") ? <img alt={asset.original_filename} className="h-40 w-full rounded-lg object-cover" src={asset.url} /> : <a className="block rounded-lg bg-slate-50 p-6 font-medium text-sky-800 hover:text-sky-950" href={asset.url}>{asset.original_filename}</a>}
+                    <div className="rounded-control border border-line p-3" key={asset.id}>
+                      {asset.mime_type.startsWith("image/") ? <img alt={asset.original_filename} className="h-40 w-full rounded-control object-cover" src={asset.url} /> : <a className="block rounded-control bg-canvas p-6 font-medium text-accent-800 hover:text-accent-900" href={asset.url}>{asset.original_filename}</a>}
                       <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-                        <span className="truncate text-slate-600">{asset.original_filename}</span>
-                        <button className="font-medium text-rose-700 hover:text-rose-900" onClick={() => void removeAsset(asset)} type="button">Delete</button>
+                        <span className="truncate text-muted">{asset.original_filename}</span>
+                        <Button className="shrink-0" onClick={() => void removeAsset(asset)} size="sm" type="button" variant="danger">Delete</Button>
                       </div>
                     </div>
                   ))}
@@ -468,7 +464,7 @@ export function BookDetailPage() {
             </div>
           </div>
         ) : null}
-      </div>
+      </Card>
     </section>
   );
 }

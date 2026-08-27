@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../shared/api";
+import { Button, Card, ErrorAlert, FormField, Input, PageHeader } from "../../shared/components";
 import { preventInvalidSubmit, useAuth } from "./AuthProvider";
 
 function authErrorMessage(error: unknown): string {
@@ -44,24 +45,16 @@ export function LoginPage() {
 
   return (
     <section className="mx-auto max-w-xl">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
-        <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">
-          Welcome back
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-          Log in to LibraryOS
-        </h1>
-        <p className="mt-3 text-slate-600">
-          Use your library account to manage reading and community activity.
-        </p>
+      <Card className="p-8 sm:p-10">
+        <PageHeader
+          description="Use your library account to manage reading and community activity."
+          eyebrow="Welcome back"
+          title="Log in to LibraryOS"
+        />
         <form className="mt-8 space-y-5" onSubmit={submit}>
-          <div>
-            <label className="text-sm font-medium text-slate-800" htmlFor="login-email">
-              Email
-            </label>
-            <input
+          <FormField htmlFor="login-email" label="Email">
+            <Input
               autoComplete="email"
-              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm"
               id="login-email"
               name="email"
               onChange={(event) => setEmail(event.target.value)}
@@ -69,14 +62,10 @@ export function LoginPage() {
               type="email"
               value={email}
             />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-800" htmlFor="login-password">
-              Password
-            </label>
-            <input
+          </FormField>
+          <FormField htmlFor="login-password" label="Password">
+            <Input
               autoComplete="current-password"
-              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm"
               id="login-password"
               minLength={8}
               name="password"
@@ -85,27 +74,26 @@ export function LoginPage() {
               type="password"
               value={password}
             />
-          </div>
+          </FormField>
           {error ? (
-            <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
-              {error}
-            </p>
+            <ErrorAlert message={error} />
           ) : null}
-          <button
-            className="w-full rounded-xl bg-slate-950 px-4 py-3 font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          <Button
+            className="w-full"
             disabled={isSubmitting}
+            loading={isSubmitting}
             type="submit"
           >
             {isSubmitting ? "Logging in…" : "Log in"}
-          </button>
+          </Button>
         </form>
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-muted">
           New to LibraryOS?{" "}
-          <Link className="font-medium text-sky-700 hover:text-sky-900" to="/register">
+          <Link className="font-medium text-accent-700 hover:text-accent-900" to="/register">
             Create an account
           </Link>
         </p>
-      </div>
+      </Card>
     </section>
   );
 }
@@ -138,24 +126,16 @@ export function RegisterPage() {
 
   return (
     <section className="mx-auto max-w-xl">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
-        <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">
-          Join the library
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-          Create your account
-        </h1>
-        <p className="mt-3 text-slate-600">
-          Start with a display name, email, and a password of at least eight characters.
-        </p>
+      <Card className="p-8 sm:p-10">
+        <PageHeader
+          description="Start with a display name, email, and a password of at least eight characters."
+          eyebrow="Join the library"
+          title="Create your account"
+        />
         <form className="mt-8 space-y-5" onSubmit={submit}>
-          <div>
-            <label className="text-sm font-medium text-slate-800" htmlFor="register-display-name">
-              Display name
-            </label>
-            <input
+          <FormField htmlFor="register-display-name" label="Display name">
+            <Input
               autoComplete="name"
-              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm"
               id="register-display-name"
               minLength={2}
               name="display_name"
@@ -164,14 +144,10 @@ export function RegisterPage() {
               type="text"
               value={displayName}
             />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-800" htmlFor="register-email">
-              Email
-            </label>
-            <input
+          </FormField>
+          <FormField htmlFor="register-email" label="Email">
+            <Input
               autoComplete="email"
-              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm"
               id="register-email"
               name="email"
               onChange={(event) => setEmail(event.target.value)}
@@ -179,14 +155,10 @@ export function RegisterPage() {
               type="email"
               value={email}
             />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-800" htmlFor="register-password">
-              Password
-            </label>
-            <input
+          </FormField>
+          <FormField htmlFor="register-password" label="Password">
+            <Input
               autoComplete="new-password"
-              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm"
               id="register-password"
               minLength={8}
               name="password"
@@ -195,27 +167,26 @@ export function RegisterPage() {
               type="password"
               value={password}
             />
-          </div>
+          </FormField>
           {error ? (
-            <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">
-              {error}
-            </p>
+            <ErrorAlert message={error} />
           ) : null}
-          <button
-            className="w-full rounded-xl bg-slate-950 px-4 py-3 font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          <Button
+            className="w-full"
             disabled={isSubmitting}
+            loading={isSubmitting}
             type="submit"
           >
             {isSubmitting ? "Creating account…" : "Create account"}
-          </button>
+          </Button>
         </form>
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-muted">
           Already registered?{" "}
-          <Link className="font-medium text-sky-700 hover:text-sky-900" to="/login">
+          <Link className="font-medium text-accent-700 hover:text-accent-900" to="/login">
             Log in
           </Link>
         </p>
-      </div>
+      </Card>
     </section>
   );
 }

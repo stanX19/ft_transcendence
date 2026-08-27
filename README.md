@@ -33,3 +33,17 @@ Never copy or import the private key. The certificate covers `localhost` and
 
 The API is intentionally not published as a host port. Browser traffic goes
 through Nginx over HTTPS, and backend secrets remain in the API container.
+
+## Integration and catalog data
+
+The documented public catalog API is available through `/public-api/v1/` with
+the configured `X-API-Key` header. It provides catalog list/detail and CRUD
+operations, rate limiting, and OpenAPI documentation at `/api/docs` and
+`/api/openapi.json`.
+
+Librarians and administrators can use `/admin/import-export` in the frontend,
+or the corresponding `/api/admin/import-export/export` and
+`/api/admin/import-export/import` routes,
+to exchange catalog records as CSV, JSON, or XML. Imports validate the complete
+file before applying one transaction and report inserted, updated, and
+rejected counts.

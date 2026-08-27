@@ -11,8 +11,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
 from app.features.ai.provider import AIProviderError
+from app.features.ai.rate_limit import enforce_ai_rate_limit
 from app.features.ai.schemas import ChatRequest
 from app.features.ai.service import AssistantOrchestrator
 from app.features.users.models import User
@@ -61,7 +61,7 @@ def _stream_chat(
 )
 def chat_stream(
     request: ChatRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(enforce_ai_rate_limit),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """Stream assistant source, tool, token, and terminal SSE events."""

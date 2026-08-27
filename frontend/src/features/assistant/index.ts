@@ -1,2 +1,3 @@
-/** AI assistant screens and streaming helpers live here. */
-export {};
+export { AssistantPage } from "./AssistantPage";
+export { streamAssistant } from "./stream";
+export type { AssistantHistoryMessage, AssistantStreamEvent } from "./stream";

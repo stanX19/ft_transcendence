@@ -16,6 +16,7 @@ import { LoansPage } from "../../features/loans";
 import { useAuth } from "../../features/auth";
 import { PrivacyPage, TermsPage } from "../../features/legal";
 import { OwnProfilePage, PeoplePage, PublicProfilePage } from "../../features/users";
+import { AssistantPage } from "../../features/assistant";
 
 function AppShell() {
   const { user, isLoading, logout } = useAuth();
@@ -46,6 +47,7 @@ function AppShell() {
                 <Link className="text-slate-600 hover:text-slate-950" to="/people">People</Link>
                 <Link className="text-slate-600 hover:text-slate-950" to="/friends">Friends</Link>
                 <Link className="text-slate-600 hover:text-slate-950" to="/loans">My loans</Link>
+                <Link className="text-slate-600 hover:text-slate-950" to="/assistant">AI Assistant</Link>
                 <Link className="text-slate-600 hover:text-slate-950" to="/profile">Profile</Link>
                 {canManageCatalog ? <Link className="text-slate-600 hover:text-slate-950" to="/admin/import-export">Import / Export</Link> : null}
                 {user.role === "ADMIN" ? <Link className="text-slate-600 hover:text-slate-950" to="/admin/users">Admin</Link> : null}
@@ -149,6 +151,7 @@ const router = createBrowserRouter([
           { path: "people", element: <PeoplePage /> },
           { path: "friends", element: <FriendsPage /> },
           { path: "loans", element: <LoansPage /> },
+          { path: "assistant", element: <AssistantPage /> },
           { path: "admin/users", element: <AdminUsersPage /> },
           { path: "admin/import-export", element: <ImportExportPage /> },
         ],

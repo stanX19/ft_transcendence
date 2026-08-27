@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     DateTime,
     Index,
     String,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -40,6 +42,11 @@ class Book(Base):
         Index("ix_books_title", "title"),
         Index("ix_books_author", "author"),
         Index("ix_books_category", "category"),
+        Index(
+            "ix_books_search_document",
+            "search_document",
+            postgresql_using="gin",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -69,4 +76,16 @@ class Book(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+    search_document: Mapped[object] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('simple', "
+            "coalesce(title, '') || ' ' || "
+            "coalesce(author, '') || ' ' || "
+            "coalesce(description, '') || ' ' || "
+            "coalesce(category, '')",
+            persisted=True,
+        ),
+        nullable=True,
     )

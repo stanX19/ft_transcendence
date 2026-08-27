@@ -11,6 +11,7 @@ from app.features.books.router import router as books_router
 from app.features.files.router import router as files_router
 from app.features.friends.router import router as friends_router
 from app.features.loans.router import router as loans_router
+from app.features.public_api.router import router as public_api_router
 from app.features.users.router import router as users_router
 
 
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
     app.include_router(files_router)
     app.include_router(friends_router)
     app.include_router(loans_router)
+    app.include_router(public_api_router)
     app.include_router(users_router)
 
     @app.get("/api/health", tags=["foundation"])

@@ -7,11 +7,13 @@ to exercise with a fake provider.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 import logging
 from typing import Any, Protocol
 
 from google import genai
+from google.genai import types
 
 from app.core.config import Settings, get_settings
 
@@ -25,6 +27,22 @@ class AIProviderError(Exception):
 
 class AIConfigurationError(AIProviderError):
     """Raised when Gemini is not configured for this deployment."""
+
+
+@dataclass(frozen=True)
+class ProviderToolCall:
+    """Provider-neutral function call emitted by Gemini."""
+
+    name: str
+    arguments: dict[str, object]
+
+
+@dataclass(frozen=True)
+class ToolAwareResponse:
+    """A final provider answer plus safe tool activity for the UI."""
+
+    text: str
+    tool_events: list[dict[str, object]]
 
 
 class ChatProvider(Protocol):
@@ -175,6 +193,120 @@ class GeminiProvider:
             raise AIProviderError(
                 "The Gemini provider is temporarily unavailable."
             ) from None
+
+    @staticmethod
+    def _tool_config(
+        definitions: Sequence[Mapping[str, object]],
+        system_instruction: str | None,
+    ) -> types.GenerateContentConfig:
+        declarations = [
+            types.FunctionDeclaration(
+                name=str(definition["name"]),
+                description=str(definition.get("description", "")),
+                parameters_json_schema=definition.get("parameters", {}),
+            )
+            for definition in definitions
+        ]
+        return types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            tools=[types.Tool(function_declarations=declarations)],
+        )
+
+    @staticmethod
+    def _tool_calls(response: Any) -> list[ProviderToolCall]:
+        calls: list[ProviderToolCall] = []
+        for call in getattr(response, "function_calls", None) or []:
+            name = getattr(call, "name", None)
+            if not name:
+                continue
+            arguments = getattr(call, "args", None) or {}
+            calls.append(
+                ProviderToolCall(
+                    name=str(name),
+                    arguments=dict(arguments),
+                )
+            )
+        return calls
+
+    def generate_with_tools(
+        self,
+        prompt: str,
+        *,
+        tool_definitions: Sequence[Mapping[str, object]],
+        tool_executor: Callable[[str, dict[str, object]], object],
+        system_instruction: str | None = None,
+        history: Sequence[dict[str, str]] = (),
+        max_rounds: int = 3,
+    ) -> ToolAwareResponse:
+        """Run bounded Gemini function calling through a supplied safe executor."""
+
+        client = self._client_or_raise()
+        config = self._tool_config(tool_definitions, system_instruction)
+        contents: object = _joined_prompt(
+            prompt=prompt,
+            system_instruction=None,
+            history=history,
+        )
+        events: list[dict[str, object]] = []
+        try:
+            for _ in range(max(1, min(int(max_rounds), 5))):
+                response = client.models.generate_content(
+                    model=self._model,
+                    contents=contents,
+                    config=config,
+                )
+                calls = self._tool_calls(response)
+                if not calls:
+                    text = self._response_text(response)
+                    if not text:
+                        raise AIProviderError(
+                            "The Gemini provider returned an empty response."
+                        )
+                    return ToolAwareResponse(text=text, tool_events=events)
+
+                response_content = None
+                candidates = getattr(response, "candidates", None) or []
+                if candidates:
+                    response_content = getattr(candidates[0], "content", None)
+                response_parts = []
+                if response_content is not None:
+                    response_parts.append(response_content)
+                function_parts = []
+                for call in calls:
+                    event: dict[str, object] = {
+                        "name": call.name,
+                        "status": "completed",
+                    }
+                    try:
+                        result = tool_executor(call.name, call.arguments)
+                        function_parts.append(
+                            types.Part.from_function_response(
+                                name=call.name,
+                                response={"result": result},
+                            )
+                        )
+                    except Exception:
+                        # Tool details are application data; do not reflect them
+                        # into a provider error or log message.
+                        event["status"] = "error"
+                        function_parts.append(
+                            types.Part.from_function_response(
+                                name=call.name,
+                                response={"error": "Tool request was denied."},
+                            )
+                        )
+                    events.append(event)
+                response_parts.append(types.Content(role="user", parts=function_parts))
+                contents = response_parts
+        except AIProviderError:
+            raise
+        except Exception as exc:
+            logger.error("Gemini tool orchestration failed: %s", type(exc).__name__)
+            raise AIProviderError(
+                "The Gemini provider is temporarily unavailable."
+            ) from None
+
+        raise AIProviderError("The Gemini provider did not finish the request.")
 
 
 # The short alias makes dependency injection pleasant in route/service tests.

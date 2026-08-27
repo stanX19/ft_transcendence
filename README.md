@@ -182,9 +182,10 @@ screenshots outside this Git repository.
 ## Subject module status
 
 The evidence-based module ledger is in [`MODULE_STATUS.md`](MODULE_STATUS.md).
-It currently claims the demonstrable 16-point baseline only. Design-system,
-i18n, and PWA stretch work is not claimed until it has its own implementation
-and verification evidence.
+It claims the demonstrable 19-point plan: the 16-point baseline plus the
+custom design system, PWA, and English/Malay/Chinese i18n stretch modules.
+Each stretch module has its own implementation, regression, and UI evidence;
+the final T094 gate reran 168 backend tests and the Docker web build.
 
 ## Individual contribution and challenges
 

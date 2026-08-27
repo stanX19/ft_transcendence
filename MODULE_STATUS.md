@@ -33,14 +33,28 @@ Git history.
 - RAG/provider: `S20260827T193928Z_T072-T073-T074-T075-T076_rag-backend`
 - Tools/orchestration/SSE: `S20260827T200307Z_T077-T078-T079-T080-T081_ai-tools-orchestration-stream`
 - Assistant UI/AI safeguards gate: `S20260827T201946Z_T082-T083-T084-T085_assistant-ui-and-ai-gate`
+- Custom design system: `S20260827T211805Z_T086-T087_design-system-components`
+- Three-language i18n: `S20260827T213411Z_T088-T089-T090_i18n-three-language`
+- PWA installability/offline shell: `S20260827T221656Z_T091-T092_pwa-installable-offline`
+- Responsive/console-clean sweep: `S20260827T231356Z_T093_responsive-console-sweep`
+- Final stretch/documentation gate: `S20260827T232206Z_T094_stretch-documentation-gate`
 
-The latest baseline verification recorded 168 backend tests passing and 20
+The latest baseline verification recorded 168 backend tests passing and 25
 frontend tests passing in the web image build. A live Gemini credential is
 intentionally not required for automated verification; the manual provider
 smoke check remains an evaluator step.
 
-## Stretch modules not claimed
+## Claimed stretch: 3 points
 
-The design-system, i18n/multiple-language, and PWA modules remain unclaimed
-until their implementation, regression checks, and documentation are
-complete. This keeps the score ledger conservative.
+| Module | Type | Points | Implementation evidence | Contributor record |
+|---|---|---:|---|---|
+| Custom design system | Minor | 1 | 13 project-owned UI primitives, semantic palette/tokens, documented typography/elevation, focused component tests, and responsive screenshots; `S20260827T211805Z_T086-T087_design-system-components`, `S20260827T231356Z_T093_responsive-console-sweep` | Shan Chien Git identity; human attribution TBD |
+| PWA | Minor | 1 | Valid standalone manifest, real 192/512 icons, service worker, cached hashed shell assets, offline navigation/status proof, and protected API cache bypass; `S20260827T221656Z_T091-T092_pwa-installable-offline` | Shan Chien Git identity; human attribution TBD |
+| 3-language i18n | Minor | 1 | Complete typed English/Malay/Chinese dictionaries, locale switcher, document language updates, explicit-choice persistence, focused tests, and live language-switch screenshot; `S20260827T213411Z_T088-T089-T090_i18n-three-language` | Shan Chien Git identity; human attribution TBD |
+| **Total stretch** |  | **3** |  |  |
+
+## Total claimed: 19 points
+
+The stretch claims above are intentionally limited to the three planned
+modules with passed implementation evidence. No other stretch module is
+claimed.

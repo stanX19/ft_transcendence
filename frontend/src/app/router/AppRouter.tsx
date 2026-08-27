@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import { LoginPage, RegisterPage } from "../../features/auth/AuthPages";
+import { BookDetailPage, BooksPage } from "../../features/books";
 import { useAuth } from "../../features/auth";
 import { PrivacyPage, TermsPage } from "../../features/legal";
 import { OwnProfilePage, PeoplePage, PublicProfilePage } from "../../features/users";
@@ -95,16 +96,6 @@ function LandingPage() {
   );
 }
 
-function CatalogPlaceholder() {
-  return (
-    <section className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">Catalog</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Books are on their way</h1>
-      <p className="mt-4 text-slate-600">The catalog view will appear here as the library collection is connected.</p>
-    </section>
-  );
-}
-
 function ProtectedRoute() {
   const { user, isLoading, error } = useAuth();
   const location = useLocation();
@@ -136,7 +127,8 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <LandingPage /> },
-      { path: "books", element: <CatalogPlaceholder /> },
+      { path: "books", element: <BooksPage /> },
+      { path: "books/:bookId", element: <BookDetailPage /> },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "users/:userId", element: <PublicProfilePage /> },

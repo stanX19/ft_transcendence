@@ -1,2 +1,3 @@
 /** User profiles and directory screens live in this vertical feature package. */
-export {};
+
+export { PeoplePage, OwnProfilePage, PublicProfilePage } from "./UserPages";

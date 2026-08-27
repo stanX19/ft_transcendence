@@ -9,6 +9,8 @@ gateway, with FastAPI and PostgreSQL on the private Docker network.
 From this directory:
 
 ```bash
+cp .env.example .env
+# Replace AUTH_SECRET and PUBLIC_API_KEY before a shared or production run.
 docker compose up --build
 ```
 

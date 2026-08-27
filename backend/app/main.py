@@ -5,6 +5,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from app.core.errors import register_error_handlers
+from app.features.auth.router import router as auth_router
+from app.features.users.router import router as users_router
 
 
 def create_app() -> FastAPI:
@@ -18,6 +20,8 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
     register_error_handlers(app)
+    app.include_router(auth_router)
+    app.include_router(users_router)
 
     @app.get("/api/health", tags=["foundation"])
     async def health() -> dict[str, str]:

@@ -197,9 +197,9 @@ export function LoadingState({ title, detail }: { title: string; detail?: string
   );
 }
 
-export function EmptyState({ title, detail, action }: { title: string; detail: string; action?: ReactNode }) {
+export function EmptyState({ title, detail, action, className }: { title: string; detail: string; action?: ReactNode; className?: string }) {
   return (
-    <Card className="mt-8 p-8 text-center">
+    <Card className={cx("mt-8 p-8 text-center", className)}>
       <h2 className="text-lg font-semibold text-ink">{title}</h2>
       <p className="mx-auto mt-2 max-w-md leading-6 text-muted">{detail}</p>
       {action ? <div className="mt-5 flex justify-center">{action}</div> : null}

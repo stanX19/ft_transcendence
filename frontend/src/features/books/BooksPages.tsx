@@ -18,6 +18,7 @@ import {
   Select,
   TextArea,
 } from "../../shared/components";
+import { type Translator, useTranslation } from "../../shared/i18n";
 import { FileUpload, type UploadedFile } from "../files";
 import { useAuth } from "../auth";
 
@@ -62,13 +63,13 @@ function canManageBooks(role: string | undefined): boolean {
   return role === "LIBRARIAN" || role === "ADMIN";
 }
 
-function formatAvailability(book: Book): string {
-  return `${book.available_copies} available of ${book.total_copies}`;
+function formatAvailability(book: Book, t: Translator): string {
+  return t("catalog.availability", { available: book.available_copies, total: book.total_copies });
 }
 
-function errorMessage(error: unknown, fallback: string): string {
+function errorMessage(error: unknown, fallback: string, t: Translator): string {
   if (error instanceof ApiError && error.status === 409) {
-    return "That catalog change conflicts with existing inventory.";
+    return t("catalog.changeConflict");
   }
   return fallback;
 }
@@ -95,6 +96,7 @@ function BookForm({
   onSaved: (saved: Book) => void;
   onCancel?: () => void;
 }) {
+  const { t } = useTranslation();
   const [values, setValues] = useState(() => emptyForm(book));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -140,7 +142,7 @@ function BookForm({
       }
       onSaved(response.book);
     } catch (saveError) {
-      setError(errorMessage(saveError, "We could not save this book. Please try again."));
+      setError(errorMessage(saveError, t("catalog.saveFailed"), t));
     } finally {
       setIsSaving(false);
     }
@@ -149,45 +151,47 @@ function BookForm({
   return (
     <form className="mt-6 space-y-4 rounded-panel border border-accent-100 bg-accent-50/70 p-5 shadow-panel" onSubmit={submit}>
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-ink">{book ? "Edit book" : "Add book"}</h2>
+        <h2 className="text-lg font-semibold text-ink">{book ? t("catalog.editTitle") : t("catalog.addTitle")}</h2>
         {onCancel ? (
           <Button onClick={onCancel} size="sm" variant="ghost" type="button">
-            Cancel
+            {t("catalog.cancel")}
           </Button>
         ) : null}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField htmlFor="book-title" label="Title">
+        <FormField htmlFor="book-title" label={t("catalog.titleField")}>
           <Input id="book-title" minLength={1} onChange={(event) => update("title", event.target.value)} required value={values.title} />
         </FormField>
-        <FormField htmlFor="book-author" label="Author">
+        <FormField htmlFor="book-author" label={t("catalog.authorField")}>
           <Input id="book-author" minLength={1} onChange={(event) => update("author", event.target.value)} required value={values.author} />
         </FormField>
-        <FormField htmlFor="book-category" label="Category">
+        <FormField htmlFor="book-category" label={t("catalog.categoryField")}>
           <Input id="book-category" minLength={1} onChange={(event) => update("category", event.target.value)} required value={values.category} />
         </FormField>
-        <FormField htmlFor="book-isbn" label={<>ISBN <span className="font-normal text-muted">(optional)</span></>}>
+        <FormField htmlFor="book-isbn" label={<>{t("catalog.isbnField")} <span className="font-normal text-muted">{t("catalog.optional")}</span></>}>
           <Input id="book-isbn" onChange={(event) => update("isbn", event.target.value)} value={values.isbn} />
         </FormField>
-        <FormField htmlFor="book-publication-year" label={<>Publication year <span className="font-normal text-muted">(optional)</span></>}>
+        <FormField htmlFor="book-publication-year" label={<>{t("catalog.publicationYear")} <span className="font-normal text-muted">{t("catalog.optional")}</span></>}>
           <Input id="book-publication-year" max={3000} min={0} onChange={(event) => update("publication_year", event.target.value)} type="number" value={values.publication_year} />
         </FormField>
-        <FormField htmlFor="book-total-copies" label="Total copies">
+        <FormField htmlFor="book-total-copies" label={t("catalog.totalCopies")}>
           <Input id="book-total-copies" min={0} onChange={(event) => update("total_copies", event.target.value)} required type="number" value={values.total_copies} />
         </FormField>
       </div>
-      <FormField htmlFor="book-description" label="Description">
+      <FormField htmlFor="book-description" label={t("catalog.descriptionField")}>
         <TextArea id="book-description" minLength={1} onChange={(event) => update("description", event.target.value)} required value={values.description} />
       </FormField>
       {error ? <ErrorAlert message={error} /> : null}
       <Button disabled={isSaving} loading={isSaving} type="submit">
-        {isSaving ? "Saving…" : book ? "Save changes" : "Add book"}
+        {isSaving ? t("catalog.saving") : book ? t("catalog.saveChanges") : t("catalog.addBook")}
       </Button>
     </form>
   );
 }
 
 function BookCard({ book }: { book: Book }) {
+  const { t } = useTranslation();
+
   return (
     <Link className="block transition hover:-translate-y-0.5" to={`/books/${book.id}`}>
       <Card className="h-full p-5 transition hover:border-accent-100">
@@ -198,11 +202,11 @@ function BookCard({ book }: { book: Book }) {
             <p className="mt-1 text-sm text-muted">{book.author}</p>
           </div>
           <Badge variant={book.available_copies > 0 ? "success" : "neutral"}>
-            {book.available_copies > 0 ? "Available" : "Checked out"}
+            {book.available_copies > 0 ? t("catalog.statusAvailable") : t("catalog.statusCheckedOut")}
           </Badge>
         </div>
         <p className="mt-4 line-clamp-2 text-sm leading-6 text-muted">{book.description}</p>
-        <p className="mt-4 text-sm font-medium text-ink-soft">{formatAvailability(book)}</p>
+        <p className="mt-4 text-sm font-medium text-ink-soft">{formatAvailability(book, t)}</p>
       </Card>
     </Link>
   );
@@ -214,6 +218,7 @@ function PageMessage({ title, detail }: { title: string; detail: string }) {
 
 export function BooksPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters] = useState({ q: "", author: "", category: "", available: "all", sort: "title", page: 1 });
@@ -250,10 +255,10 @@ export function BooksPage() {
   return (
     <section className="mx-auto max-w-6xl">
       <PageHeader
-        actions={canManageBooks(user?.role) ? <Button onClick={() => setShowCreate((current) => !current)}>{showCreate ? "Close form" : "Add book"}</Button> : null}
-        description="Search the local collection by title, author, description, or ISBN."
-        eyebrow="Library catalog"
-        title="Browse books"
+        actions={canManageBooks(user?.role) ? <Button onClick={() => setShowCreate((current) => !current)}>{showCreate ? t("catalog.cancel") : t("catalog.addBook")}</Button> : null}
+        description={t("catalog.description")}
+        eyebrow={t("catalog.eyebrow")}
+        title={t("catalog.title")}
       />
 
       {showCreate ? (
@@ -268,46 +273,46 @@ export function BooksPage() {
 
       <Card className="mt-8 p-4">
         <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" onSubmit={search}>
-        <FormField className="lg:col-span-2" htmlFor="catalog-search" label="Search catalog">
-          <Input id="catalog-search" onChange={(event) => setSearchInput(event.target.value)} placeholder="Title, author, topic, ISBN" value={searchInput} />
+        <FormField className="lg:col-span-2" htmlFor="catalog-search" label={t("catalog.searchLabel")}>
+          <Input id="catalog-search" onChange={(event) => setSearchInput(event.target.value)} placeholder={t("catalog.searchPlaceholder")} value={searchInput} />
         </FormField>
-        <FormField htmlFor="catalog-author" label="Author">
-          <Input id="catalog-author" onChange={(event) => updateFilter("author", event.target.value)} placeholder="Filter author" value={filters.author} />
+        <FormField htmlFor="catalog-author" label={t("catalog.authorLabel")}>
+          <Input id="catalog-author" onChange={(event) => updateFilter("author", event.target.value)} placeholder={t("catalog.authorPlaceholder")} value={filters.author} />
         </FormField>
-        <FormField htmlFor="catalog-category" label="Category">
-          <Input id="catalog-category" onChange={(event) => updateFilter("category", event.target.value)} placeholder="Filter category" value={filters.category} />
+        <FormField htmlFor="catalog-category" label={t("catalog.categoryLabel")}>
+          <Input id="catalog-category" onChange={(event) => updateFilter("category", event.target.value)} placeholder={t("catalog.categoryPlaceholder")} value={filters.category} />
         </FormField>
-        <FormField htmlFor="catalog-availability" label="Availability">
+        <FormField htmlFor="catalog-availability" label={t("catalog.availabilityLabel")}>
           <Select id="catalog-availability" onChange={(event) => updateFilter("available", event.target.value)} value={filters.available}>
-            <option value="all">All books</option>
-            <option value="true">Available now</option>
-            <option value="false">Checked out</option>
+            <option value="all">{t("catalog.allBooks")}</option>
+            <option value="true">{t("catalog.availableNow")}</option>
+            <option value="false">{t("catalog.checkedOut")}</option>
           </Select>
         </FormField>
-        <FormField htmlFor="catalog-sort" label="Sort by">
+        <FormField htmlFor="catalog-sort" label={t("catalog.sortLabel")}>
           <Select id="catalog-sort" onChange={(event) => updateFilter("sort", event.target.value)} value={filters.sort}>
-            <option value="title">Title</option>
-            <option value="author">Author</option>
-            <option value="newest">Newest</option>
+            <option value="title">{t("catalog.sortTitle")}</option>
+            <option value="author">{t("catalog.sortAuthor")}</option>
+            <option value="newest">{t("catalog.sortNewest")}</option>
           </Select>
         </FormField>
-        <Button className="sm:col-span-2 lg:col-span-5 lg:justify-self-end" type="submit" variant="accent">Search</Button>
+        <Button className="sm:col-span-2 lg:col-span-5 lg:justify-self-end" type="submit" variant="accent">{t("catalog.search")}</Button>
         </form>
       </Card>
 
-      {booksQuery.isLoading ? <LoadingState detail="Fetching books from the library collection." title="Loading catalog…" /> : null}
-      {booksQuery.error ? <ErrorAlert className="mt-8" message={<><strong>Catalog unavailable.</strong> We could not load the books. Please try again.</>} /> : null}
-      {booksQuery.data && booksQuery.data.items.length === 0 ? <PageMessage title="No books found" detail="Try a broader search or clear one of the filters." /> : null}
+      {booksQuery.isLoading ? <LoadingState detail={t("catalog.loadingDetail")} title={t("catalog.loadingTitle")} /> : null}
+      {booksQuery.error ? <ErrorAlert className="mt-8" message={<><strong>{t("catalog.unavailableTitle")}</strong> {t("catalog.unavailableDetail")}</>} /> : null}
+      {booksQuery.data && booksQuery.data.items.length === 0 ? <PageMessage title={t("catalog.noBooksTitle")} detail={t("catalog.noBooksDetail")} /> : null}
       {booksQuery.data && booksQuery.data.items.length > 0 ? (
         <>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {booksQuery.data.items.map((book) => <BookCard book={book} key={book.id} />)}
           </div>
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 text-sm text-muted">
-            <span>Page {booksQuery.data.page} of {totalPages} · {booksQuery.data.total} books</span>
+            <span>{t("catalog.pageSummary", { page: booksQuery.data.page, totalPages, count: booksQuery.data.total })}</span>
             <div className="flex gap-2">
-              <Button disabled={filters.page <= 1} onClick={() => pageChange(filters.page - 1)} size="sm" variant="secondary" type="button">Previous</Button>
-              <Button disabled={filters.page >= totalPages} onClick={() => pageChange(filters.page + 1)} size="sm" variant="secondary" type="button">Next</Button>
+              <Button disabled={filters.page <= 1} onClick={() => pageChange(filters.page - 1)} size="sm" variant="secondary" type="button">{t("catalog.previous")}</Button>
+              <Button disabled={filters.page >= totalPages} onClick={() => pageChange(filters.page + 1)} size="sm" variant="secondary" type="button">{t("catalog.next")}</Button>
             </div>
           </div>
         </>
@@ -321,6 +326,7 @@ export function BookDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [borrowError, setBorrowError] = useState<string | null>(null);
@@ -337,12 +343,12 @@ export function BookDetailPage() {
   });
   const book = bookQuery.data?.book;
 
-  if (bookQuery.isLoading) return <LoadingState detail="Fetching the catalog record." title="Loading book…" />;
+  if (bookQuery.isLoading) return <LoadingState detail={t("book.loadingDetail")} title={t("book.loadingTitle")} />;
   if (bookQuery.error) {
     const notFound = bookQuery.error instanceof ApiError && bookQuery.error.status === 404;
-    return <PageMessage title={notFound ? "Book not found" : "Book unavailable"} detail={notFound ? "This catalog record does not exist." : "Please try again in a moment."} />;
+    return <PageMessage title={notFound ? t("book.notFoundTitle") : t("book.unavailableTitle")} detail={notFound ? t("book.notFoundDetail") : t("book.unavailableDetail")} />;
   }
-  if (!book) return <PageMessage title="Book unavailable" detail="No catalog data was returned." />;
+  if (!book) return <PageMessage title={t("book.unavailableTitle")} detail={t("book.noDataDetail")} />;
 
   async function borrowBook() {
     setBorrowError(null);
@@ -350,14 +356,14 @@ export function BookDetailPage() {
     setIsBorrowing(true);
     try {
       await apiRequest(`/api/books/${book.id}/borrow`, { method: "POST" });
-      setBorrowMessage("Loan recorded. This book is now in My loans.");
+      setBorrowMessage(t("book.loanRecorded"));
       await queryClient.invalidateQueries({ queryKey: ["books"] });
       await queryClient.invalidateQueries({ queryKey: ["loans", "me"] });
     } catch (error) {
       setBorrowError(
         error instanceof ApiError && error.status === 409
-          ? "This book is no longer available for you to borrow."
-          : "We could not borrow this book. Please try again.",
+          ? t("book.borrowConflict")
+          : t("book.borrowFailed"),
       );
     } finally {
       setIsBorrowing(false);
@@ -371,7 +377,7 @@ export function BookDetailPage() {
       await queryClient.invalidateQueries({ queryKey: ["books"] });
       navigate("/books", { replace: true });
     } catch (error) {
-      setDeleteError(errorMessage(error, "We could not delete this book. Please try again."));
+      setDeleteError(errorMessage(error, t("book.deleteFailed"), t));
     }
   }
 
@@ -381,7 +387,7 @@ export function BookDetailPage() {
       await apiRequest(`/api/files/${asset.id}`, { method: "DELETE" });
       setAssets((current) => current.filter((item) => item.id !== asset.id));
     } catch {
-      setFileError("We could not delete that file. Please try again.");
+      setFileError(t("book.fileDeleteFailed"));
     }
   }
 
@@ -392,7 +398,7 @@ export function BookDetailPage() {
 
   return (
     <section className="mx-auto max-w-4xl">
-      <LinkButton size="sm" to="/books" variant="ghost">← Back to catalog</LinkButton>
+      <LinkButton size="sm" to="/books" variant="ghost">{t("book.back")}</LinkButton>
       <Card className="mt-6 p-8 sm:p-10">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
@@ -400,21 +406,21 @@ export function BookDetailPage() {
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink">{book.title}</h1>
             <p className="mt-2 text-lg text-muted">{book.author}</p>
           </div>
-          <Badge variant={book.available_copies > 0 ? "success" : "neutral"}>{formatAvailability(book)}</Badge>
+          <Badge variant={book.available_copies > 0 ? "success" : "neutral"}>{formatAvailability(book, t)}</Badge>
         </div>
         <div className="mt-8 grid gap-8 border-t border-line pt-8 sm:grid-cols-[1fr_16rem]">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">About this book</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">{t("book.about")}</h2>
             <p className="mt-3 whitespace-pre-wrap leading-7 text-ink-soft">{book.description}</p>
           </div>
           <dl className="space-y-3 text-sm text-muted">
-            <div className="flex justify-between gap-4"><dt>Category</dt><dd className="font-medium text-ink">{book.category}</dd></div>
-            {book.publication_year ? <div className="flex justify-between gap-4"><dt>Published</dt><dd className="font-medium text-ink">{book.publication_year}</dd></div> : null}
-            {book.isbn ? <div className="flex justify-between gap-4"><dt>ISBN</dt><dd className="font-medium text-ink">{book.isbn}</dd></div> : null}
+            <div className="flex justify-between gap-4"><dt>{t("catalog.categoryField")}</dt><dd className="font-medium text-ink">{book.category}</dd></div>
+            {book.publication_year ? <div className="flex justify-between gap-4"><dt>{t("book.published")}</dt><dd className="font-medium text-ink">{book.publication_year}</dd></div> : null}
+            {book.isbn ? <div className="flex justify-between gap-4"><dt>{t("catalog.isbnField")}</dt><dd className="font-medium text-ink">{book.isbn}</dd></div> : null}
           </dl>
         </div>
         <div className="mt-8 border-t border-line pt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Borrow this book</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">{t("book.borrowSection")}</h2>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {user ? (
               <Button
@@ -423,10 +429,10 @@ export function BookDetailPage() {
                 onClick={() => void borrowBook()}
                 type="button"
               >
-                {isBorrowing ? "Borrowing…" : book.available_copies > 0 ? "Borrow book" : "Currently unavailable"}
+                {isBorrowing ? t("book.borrowing") : book.available_copies > 0 ? t("book.borrow") : t("book.currentlyUnavailable")}
               </Button>
             ) : (
-              <LinkButton to="/login" variant="accent">Log in to borrow</LinkButton>
+              <LinkButton to="/login" variant="accent">{t("book.loginToBorrow")}</LinkButton>
             )}
           </div>
           {borrowMessage ? <Notice className="mt-3" message={borrowMessage} /> : null}
@@ -435,17 +441,17 @@ export function BookDetailPage() {
         {canManageBooks(user?.role) ? (
           <div className="mt-8 border-t border-line pt-6">
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => setEditing((current) => !current)} variant="secondary" type="button">{editing ? "Close editor" : "Edit book"}</Button>
-              <Button onClick={() => void removeBook()} variant="danger" type="button">Delete book</Button>
+              <Button onClick={() => setEditing((current) => !current)} variant="secondary" type="button">{editing ? t("book.closeEditor") : t("book.edit")}</Button>
+              <Button onClick={() => void removeBook()} variant="danger" type="button">{t("book.delete")}</Button>
             </div>
             {deleteError ? <ErrorAlert className="mt-3" message={deleteError} /> : null}
             {editing ? <BookForm book={book} onCancel={() => setEditing(false)} onSaved={(saved) => { setEditing(false); queryClient.setQueryData(["books", bookId], { book: saved }); }} /> : null}
             <div className="mt-8 border-t border-line pt-6">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">Book files</h2>
-              <p className="mt-2 text-sm text-muted">Add a cover preview or a reference PDF. Files are served through protected application routes.</p>
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-muted">{t("book.filesTitle")}</h2>
+              <p className="mt-2 text-sm text-muted">{t("book.filesDescription")}</p>
               <div className="mt-4 space-y-3">
-                <FileUpload accept="image/jpeg,image/png,image/webp" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_COVER" }} helper="JPEG, PNG, or WebP. Maximum 10 MB." label="Book cover" onUploaded={addAsset} />
-                <FileUpload accept="application/pdf" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_DOCUMENT" }} helper="PDF only. Maximum 10 MB." label="Book document" onUploaded={addAsset} />
+                <FileUpload accept="image/jpeg,image/png,image/webp" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_COVER" }} helper={t("file.imageHelper")} label={t("file.cover")} onUploaded={addAsset} />
+                <FileUpload accept="application/pdf" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_DOCUMENT" }} helper={t("file.pdfHelper")} label={t("file.document")} onUploaded={addAsset} />
               </div>
               {fileError ? <ErrorAlert className="mt-3" message={fileError} /> : null}
               {assets.length > 0 ? (
@@ -455,7 +461,7 @@ export function BookDetailPage() {
                       {asset.mime_type.startsWith("image/") ? <img alt={asset.original_filename} className="h-40 w-full rounded-control object-cover" src={asset.url} /> : <a className="block rounded-control bg-canvas p-6 font-medium text-accent-800 hover:text-accent-900" href={asset.url}>{asset.original_filename}</a>}
                       <div className="mt-3 flex items-center justify-between gap-3 text-sm">
                         <span className="truncate text-muted">{asset.original_filename}</span>
-                        <Button className="shrink-0" onClick={() => void removeAsset(asset)} size="sm" type="button" variant="danger">Delete</Button>
+                        <Button className="shrink-0" onClick={() => void removeAsset(asset)} size="sm" type="button" variant="danger">{t("book.deleteFile")}</Button>
                       </div>
                     </div>
                   ))}

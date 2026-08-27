@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ApiError, apiRequest } from "../../shared/api";
+import { Button, ErrorAlert, FormField, Input, PageHeader } from "../../shared/components";
+import { useTranslation } from "../../shared/i18n";
 import type { PublicUser } from "../../shared/types";
 
 interface FriendsResponse {
@@ -13,10 +15,12 @@ interface SearchResponse {
 }
 
 function Presence({ isOnline }: { isOnline: boolean }) {
+  const { t } = useTranslation();
+
   return (
     <span className="inline-flex items-center gap-2 text-sm text-slate-500">
       <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-slate-300"}`} />
-      {isOnline ? "Online" : "Offline"}
+      {isOnline ? t("presence.online") : t("presence.offline")}
     </span>
   );
 }
@@ -31,6 +35,7 @@ function PageMessage({ title, detail }: { title: string; detail: string }) {
 }
 
 export function FriendsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -65,7 +70,7 @@ export function FriendsPage() {
       await queryClient.invalidateQueries({ queryKey: ["friends"] });
       await queryClient.invalidateQueries({ queryKey: ["users", "find-friends"] });
     } catch (error) {
-      setActionError(error instanceof ApiError && error.status === 409 ? "That person is already a friend." : "We could not add that friend.");
+      setActionError(error instanceof ApiError && error.status === 409 ? t("friends.alreadyFriend") : t("friends.addFailed"));
     } finally {
       setActionId(null);
     }
@@ -78,7 +83,7 @@ export function FriendsPage() {
       await apiRequest(`/api/friends/${userId}`, { method: "DELETE" });
       await queryClient.invalidateQueries({ queryKey: ["friends"] });
     } catch {
-      setActionError("We could not remove that friend. Please try again.");
+      setActionError(t("friends.removeFailed"));
     } finally {
       setActionId(null);
     }
@@ -87,67 +92,60 @@ export function FriendsPage() {
   return (
     <section className="mx-auto max-w-5xl">
       <div>
-        <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">Library community</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Friends</h1>
-        <p className="mt-3 max-w-2xl text-slate-600">Keep your reading circle close and see who is around.</p>
+        <PageHeader description={t("friends.description")} eyebrow={t("friends.eyebrow")} title={t("friends.title")} />
       </div>
 
       <form className="mt-8 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row" onSubmit={submitSearch}>
-        <label className="sr-only" htmlFor="friend-search">Find people to add</label>
-        <input
-          className="min-w-0 flex-1 rounded-xl border border-slate-300 px-4 py-3"
-          id="friend-search"
-          onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Find people by display name"
-          value={searchInput}
-        />
-        <button className="rounded-xl bg-slate-950 px-5 py-3 font-medium text-white" type="submit">Find people</button>
+        <FormField className="min-w-0 flex-1" htmlFor="friend-search" label={t("friends.searchLabel")}>
+          <Input id="friend-search" onChange={(event) => setSearchInput(event.target.value)} placeholder={t("friends.searchPlaceholder")} value={searchInput} />
+        </FormField>
+        <Button className="self-end" type="submit">{t("friends.findPeople")}</Button>
       </form>
 
       {search ? (
         <div className="mt-5 rounded-2xl border border-sky-100 bg-sky-50/60 p-5">
-          <h2 className="font-semibold text-slate-950">People matching “{search}”</h2>
-          {peopleQuery.isLoading ? <p className="mt-3 text-sm text-slate-600">Searching people…</p> : null}
-          {peopleQuery.error ? <p className="mt-3 text-sm text-rose-700" role="alert">People search is unavailable right now.</p> : null}
-          {!peopleQuery.isLoading && !peopleQuery.error && (peopleQuery.data?.items ?? []).length === 0 ? <p className="mt-3 text-sm text-slate-600">No matching people found.</p> : null}
+          <h2 className="font-semibold text-slate-950">{t("friends.matching", { query: search })}</h2>
+          {peopleQuery.isLoading ? <p className="mt-3 text-sm text-slate-600">{t("friends.searching")}</p> : null}
+          {peopleQuery.error ? <ErrorAlert className="mt-3" message={t("friends.searchUnavailable")} /> : null}
+          {!peopleQuery.isLoading && !peopleQuery.error && (peopleQuery.data?.items ?? []).length === 0 ? <p className="mt-3 text-sm text-slate-600">{t("friends.noMatching")}</p> : null}
           <div className="mt-3 space-y-2">
             {(peopleQuery.data?.items ?? []).filter((person) => !friendIds.has(person.id)).map((person) => (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3" key={person.id}>
                 <div>
                   <p className="font-medium text-slate-950">{person.display_name}</p>
-                  <p className="text-sm text-slate-500">{person.bio || "No biography added yet."}</p>
+                  <p className="text-sm text-slate-500">{person.bio || t("friends.biographyNone")}</p>
                 </div>
-                <button className="rounded-lg border border-sky-200 px-3 py-2 text-sm font-medium text-sky-800 disabled:opacity-50" disabled={actionId === person.id} onClick={() => void addFriend(person.id)} type="button">
-                  {actionId === person.id ? "Adding…" : "Add friend"}
-                </button>
+                <Button disabled={actionId === person.id} loading={actionId === person.id} onClick={() => void addFriend(person.id)} size="sm" type="button" variant="secondary">
+                  {actionId === person.id ? t("friends.adding") : t("friends.addFriend")}
+                </Button>
               </div>
             ))}
           </div>
         </div>
       ) : null}
 
-      {actionError ? <p className="mt-4 text-sm text-rose-700" role="alert">{actionError}</p> : null}
+      {actionError ? <ErrorAlert className="mt-4" message={actionError} /> : null}
       <div className="mt-8">
         <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 className="text-xl font-semibold text-slate-950">Your friends</h2>
-          <span className="text-sm text-slate-500">Presence updates every 30 seconds</span>
+          <h2 className="text-xl font-semibold text-slate-950">{t("friends.yourFriends")}</h2>
+          <span className="text-sm text-slate-500">{t("friends.presenceRefresh")}</span>
         </div>
-        {friendsQuery.isLoading ? <PageMessage title="Loading friends…" detail="Checking your reading circle." /> : null}
-        {friendsQuery.error ? <PageMessage title="Friends unavailable" detail="We could not load your friends. Please try again." /> : null}
-        {!friendsQuery.isLoading && !friendsQuery.error && friends.length === 0 ? <PageMessage title="No friends yet" detail="Search above to add someone from the library community." /> : null}
+        {friendsQuery.isLoading ? <PageMessage title={t("friends.loadingTitle")} detail={t("friends.loadingDetail")} /> : null}
+        {friendsQuery.error ? <PageMessage title={t("friends.unavailableTitle")} detail={t("friends.unavailableDetail")} /> : null}
+        {!friendsQuery.isLoading && !friendsQuery.error && friends.length === 0 ? <PageMessage title={t("friends.emptyTitle")} detail={t("friends.emptyDetail")} /> : null}
         {!friendsQuery.isLoading && !friendsQuery.error && friends.length > 0 ? (
           <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
             {friends.map((friend) => (
               <div className="flex flex-wrap items-center justify-between gap-4 p-5" key={friend.id}>
                 <div>
                   <h3 className="font-semibold text-slate-950">{friend.display_name}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{friend.bio || "No biography added yet."}</p>
+                  <p className="mt-1 text-sm text-slate-600">{friend.bio || t("friends.biographyNone")}</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <Presence isOnline={friend.is_online} />
-                  <button className="text-sm font-medium text-rose-700 hover:text-rose-900 disabled:opacity-50" disabled={actionId === friend.id} onClick={() => void removeFriend(friend.id)} type="button">
-                    {actionId === friend.id ? "Removing…" : "Remove"}
-                  </button>
+                  <Button className="text-sm" disabled={actionId === friend.id} loading={actionId === friend.id} onClick={() => void removeFriend(friend.id)} size="sm" type="button" variant="danger">
+                    {actionId === friend.id ? t("friends.removing") : t("friends.remove")}
+                  </Button>
                 </div>
               </div>
             ))}

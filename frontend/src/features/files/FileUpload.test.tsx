@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { I18nProvider } from "../../shared/i18n";
 import { FileUpload, type UploadedFile } from "./FileUpload";
 
 class FakeUpload {
@@ -66,13 +67,15 @@ describe("FileUpload", () => {
     vi.stubGlobal("XMLHttpRequest", FakeXMLHttpRequest);
     const onUploaded = vi.fn();
     const { container } = render(
-      <FileUpload
-        accept="image/png"
-        endpoint="/api/users/me/avatar"
-        helper="PNG only"
-        label="Avatar"
-        onUploaded={onUploaded}
-      />,
+      <I18nProvider>
+        <FileUpload
+          accept="image/png"
+          endpoint="/api/users/me/avatar"
+          helper="PNG only"
+          label="Avatar"
+          onUploaded={onUploaded}
+        />
+      </I18nProvider>,
     );
     const fileInput = container.querySelector('input[type="file"]');
     expect(fileInput).not.toBeNull();

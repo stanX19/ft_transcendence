@@ -3,20 +3,22 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../shared/api";
 import { Button, Card, ErrorAlert, FormField, Input, PageHeader } from "../../shared/components";
+import { type Translator, useTranslation } from "../../shared/i18n";
 import { preventInvalidSubmit, useAuth } from "./AuthProvider";
 
-function authErrorMessage(error: unknown): string {
+function authErrorMessage(error: unknown, t: Translator): string {
   if (error instanceof ApiError && error.status === 409) {
-    return "An account with that email already exists.";
+    return t("auth.error.accountExists");
   }
   if (error instanceof ApiError && error.status === 401) {
-    return "The email or password is incorrect.";
+    return t("auth.error.invalidCredentials");
   }
-  return "We could not complete that request. Please try again.";
+  return t("auth.error.generic");
 }
 
 export function LoginPage() {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -37,7 +39,7 @@ export function LoginPage() {
         (location.state as { from?: string } | null)?.from ?? "/profile";
       navigate(destination, { replace: true });
     } catch (submitError) {
-      setError(authErrorMessage(submitError));
+      setError(authErrorMessage(submitError, t));
     } finally {
       setIsSubmitting(false);
     }
@@ -47,12 +49,12 @@ export function LoginPage() {
     <section className="mx-auto max-w-xl">
       <Card className="p-8 sm:p-10">
         <PageHeader
-          description="Use your library account to manage reading and community activity."
-          eyebrow="Welcome back"
-          title="Log in to LibraryOS"
+          description={t("auth.loginDescription")}
+          eyebrow={t("auth.loginEyebrow")}
+          title={t("auth.loginTitle")}
         />
         <form className="mt-8 space-y-5" onSubmit={submit}>
-          <FormField htmlFor="login-email" label="Email">
+          <FormField htmlFor="login-email" label={t("auth.email")}>
             <Input
               autoComplete="email"
               id="login-email"
@@ -63,7 +65,7 @@ export function LoginPage() {
               value={email}
             />
           </FormField>
-          <FormField htmlFor="login-password" label="Password">
+          <FormField htmlFor="login-password" label={t("auth.password")}>
             <Input
               autoComplete="current-password"
               id="login-password"
@@ -84,13 +86,13 @@ export function LoginPage() {
             loading={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Logging in…" : "Log in"}
+            {isSubmitting ? t("auth.loggingIn") : t("auth.login")}
           </Button>
         </form>
         <p className="mt-6 text-sm text-muted">
-          New to LibraryOS?{" "}
+          {t("auth.newToLibrary")}{" "}
           <Link className="font-medium text-accent-700 hover:text-accent-900" to="/register">
-            Create an account
+            {t("auth.createAccount")}
           </Link>
         </p>
       </Card>
@@ -100,6 +102,7 @@ export function LoginPage() {
 
 export function RegisterPage() {
   const { register } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -118,7 +121,7 @@ export function RegisterPage() {
       await register(displayName, email, password);
       navigate("/profile", { replace: true });
     } catch (submitError) {
-      setError(authErrorMessage(submitError));
+      setError(authErrorMessage(submitError, t));
     } finally {
       setIsSubmitting(false);
     }
@@ -128,12 +131,12 @@ export function RegisterPage() {
     <section className="mx-auto max-w-xl">
       <Card className="p-8 sm:p-10">
         <PageHeader
-          description="Start with a display name, email, and a password of at least eight characters."
-          eyebrow="Join the library"
-          title="Create your account"
+          description={t("auth.registerDescription")}
+          eyebrow={t("auth.registerEyebrow")}
+          title={t("auth.registerTitle")}
         />
         <form className="mt-8 space-y-5" onSubmit={submit}>
-          <FormField htmlFor="register-display-name" label="Display name">
+          <FormField htmlFor="register-display-name" label={t("auth.displayName")}>
             <Input
               autoComplete="name"
               id="register-display-name"
@@ -145,7 +148,7 @@ export function RegisterPage() {
               value={displayName}
             />
           </FormField>
-          <FormField htmlFor="register-email" label="Email">
+          <FormField htmlFor="register-email" label={t("auth.email")}>
             <Input
               autoComplete="email"
               id="register-email"
@@ -156,7 +159,7 @@ export function RegisterPage() {
               value={email}
             />
           </FormField>
-          <FormField htmlFor="register-password" label="Password">
+          <FormField htmlFor="register-password" label={t("auth.password")}>
             <Input
               autoComplete="new-password"
               id="register-password"
@@ -177,13 +180,13 @@ export function RegisterPage() {
             loading={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Creating account…" : "Create account"}
+            {isSubmitting ? t("auth.creatingAccount") : t("auth.createAccount")}
           </Button>
         </form>
         <p className="mt-6 text-sm text-muted">
-          Already registered?{" "}
+          {t("auth.alreadyRegistered")}{" "}
           <Link className="font-medium text-accent-700 hover:text-accent-900" to="/login">
-            Log in
+            {t("auth.login")}
           </Link>
         </p>
       </Card>

@@ -3,23 +3,35 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { ApiError, apiRequest } from "../../shared/api";
+import { Button, Card, EmptyState, ErrorAlert, FormField, Input, LinkButton, LoadingState, Notice, PageHeader, TextArea } from "../../shared/components";
+import { type Translator, useTranslation } from "../../shared/i18n";
 import type { PublicUser, UserDirectoryResponse } from "../../shared/types";
 import { useAuth } from "../auth";
 import { FileUpload, type UploadedFile } from "../files";
 
+function roleLabel(role: string, t: Translator): string {
+  if (role === "ADMIN") return t("role.admin");
+  if (role === "LIBRARIAN") return t("role.librarian");
+  return t("role.member");
+}
+
 function Presence({ isOnline }: { isOnline: boolean }) {
+  const { t } = useTranslation();
+
   return (
     <span className="inline-flex items-center gap-2 text-sm text-slate-500">
       <span
         aria-hidden="true"
         className={`h-2.5 w-2.5 rounded-full ${isOnline ? "bg-emerald-500" : "bg-slate-300"}`}
       />
-      {isOnline ? "Online" : "Offline"}
+      {isOnline ? t("presence.online") : t("presence.offline")}
     </span>
   );
 }
 
 function ProfileCard({ user }: { user: PublicUser }) {
+  const { t } = useTranslation();
+
   return (
     <Link
       className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300"
@@ -29,7 +41,7 @@ function ProfileCard({ user }: { user: PublicUser }) {
         <div>
           <h2 className="font-semibold text-slate-950">{user.display_name}</h2>
           <p className="mt-2 line-clamp-2 text-sm text-slate-600">
-            {user.bio || "No biography added yet."}
+            {user.bio || t("friends.biographyNone")}
           </p>
         </div>
         <Presence isOnline={user.is_online} />
@@ -40,6 +52,7 @@ function ProfileCard({ user }: { user: PublicUser }) {
 
 export function OwnProfilePage() {
   const { user, setUser } = useAuth();
+  const { t } = useTranslation();
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
   const [message, setMessage] = useState<string | null>(null);
@@ -77,13 +90,9 @@ export function OwnProfilePage() {
       if (payload.user) {
         setUser(payload.user);
       }
-      setMessage("Your profile is updated.");
+      setMessage(t("profile.updated"));
     } catch (saveError) {
-      setError(
-        saveError instanceof ApiError
-          ? saveError.message
-          : "We could not save your profile. Please try again.",
-      );
+      setError(t("profile.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -91,22 +100,16 @@ export function OwnProfilePage() {
 
   return (
     <section className="mx-auto max-w-3xl">
-      <div className="mb-8">
-        <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">Your account</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Your profile</h1>
-        <p className="mt-3 text-slate-600">
-          Keep the public details that help other readers recognize you.
-        </p>
-      </div>
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <PageHeader description={t("profile.description")} eyebrow={t("profile.eyebrow")} title={t("profile.title")} />
+      <Card className="mt-8 p-8">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-xl font-semibold text-sky-800">
-              {avatar ? <img alt="Your avatar" className="h-full w-full object-cover" src={avatar.url} /> : user.display_name.slice(0, 2).toUpperCase()}
+              {avatar ? <img alt={t("profile.avatarAlt")} className="h-full w-full object-cover" src={avatar.url} /> : user.display_name.slice(0, 2).toUpperCase()}
             </div>
             <div>
             <p className="font-semibold text-slate-950">{user.email}</p>
-            <p className="mt-1 text-sm text-slate-500">Role: {user.role}</p>
+            <p className="mt-1 text-sm text-slate-500">{t("profile.role", { role: roleLabel(user.role, t) })}</p>
             </div>
           </div>
           <Presence isOnline={user.is_online} />
@@ -115,59 +118,53 @@ export function OwnProfilePage() {
           <FileUpload
             accept="image/jpeg,image/png,image/webp"
             endpoint="/api/users/me/avatar"
-            helper="JPEG, PNG, or WebP. Maximum 10 MB."
-            label="Profile avatar"
+            helper={t("profile.avatarHelper")}
+            label={t("profile.avatarLabel")}
             onUploaded={setAvatar}
           />
           {avatar ? (
-            <button className="mt-3 text-sm font-medium text-rose-700 hover:text-rose-900" onClick={() => { void apiRequest("/api/users/me/avatar", { method: "DELETE" }).then(() => setAvatar(null)).catch(() => setError("We could not remove your avatar.")); }} type="button">
-              Remove avatar
-            </button>
+            <Button className="mt-3" onClick={() => { void apiRequest("/api/users/me/avatar", { method: "DELETE" }).then(() => setAvatar(null)).catch(() => setError(t("profile.removeFailed"))); }} size="sm" type="button" variant="danger">
+              {t("profile.removeAvatar")}
+            </Button>
           ) : null}
         </div>
         <form className="space-y-5" onSubmit={submit}>
-          <div>
-            <label className="text-sm font-medium text-slate-800" htmlFor="profile-display-name">
-              Display name
-            </label>
-            <input
-              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+          <FormField htmlFor="profile-display-name" label={t("profile.displayName")}>
+            <Input
               id="profile-display-name"
               minLength={2}
               onChange={(event) => setDisplayName(event.target.value)}
               required
               value={displayName}
             />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-800" htmlFor="profile-bio">
-              Bio
-            </label>
-            <textarea
-              className="mt-2 min-h-32 w-full rounded-xl border border-slate-300 px-4 py-3"
+          </FormField>
+          <FormField htmlFor="profile-bio" label={t("profile.bio")}>
+            <TextArea
+              className="min-h-32"
               id="profile-bio"
               maxLength={2000}
               onChange={(event) => setBio(event.target.value)}
               value={bio}
             />
-          </div>
-          {message ? <p className="text-sm text-emerald-700" role="status">{message}</p> : null}
-          {error ? <p className="text-sm text-rose-700" role="alert">{error}</p> : null}
-          <button
-            className="rounded-xl bg-slate-950 px-5 py-3 font-medium text-white disabled:opacity-60"
+          </FormField>
+          {message ? <Notice message={message} /> : null}
+          {error ? <ErrorAlert message={error} /> : null}
+          <Button
             disabled={isSaving}
+            loading={isSaving}
             type="submit"
           >
-            {isSaving ? "Saving…" : "Save profile"}
-          </button>
+            {isSaving ? t("profile.saving") : t("profile.save")}
+          </Button>
         </form>
-      </div>
+      </Card>
     </section>
   );
 }
 
 export function PublicProfilePage() {
   const { userId } = useParams();
+  const { t } = useTranslation();
   const profileQuery = useQuery({
     queryKey: ["users", userId],
     queryFn: () => apiRequest<{ user?: PublicUser }>(`/api/users/${userId}`),
@@ -177,30 +174,28 @@ export function PublicProfilePage() {
   const user = profileQuery.data?.user;
 
   if (profileQuery.isLoading) {
-    return <PageMessage title="Loading profile…" detail="Fetching the public profile." />;
+    return <LoadingState title={t("profile.loadingTitle")} detail={t("profile.loadingDetail")} />;
   }
   if (profileQuery.error) {
     const notFound = profileQuery.error instanceof ApiError && profileQuery.error.status === 404;
     return (
       <PageMessage
-        title={notFound ? "Profile not found" : "Profile unavailable"}
-        detail={notFound ? "This reader profile does not exist." : "Please try again in a moment."}
+        title={notFound ? t("profile.notFoundTitle") : t("profile.unavailableTitle")}
+        detail={notFound ? t("profile.notFoundDetail") : t("profile.unavailableDetail")}
       />
     );
   }
   if (!user) {
-    return <PageMessage title="Profile unavailable" detail="No public profile data was returned." />;
+    return <PageMessage title={t("profile.unavailableTitle")} detail={t("profile.noDataDetail")} />;
   }
 
   return (
     <section className="mx-auto max-w-3xl">
-      <Link className="text-sm font-medium text-sky-700 hover:text-sky-900" to="/people">
-        ← Back to people
-      </Link>
-      <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+      <LinkButton size="sm" to="/people" variant="ghost">{t("profile.back")}</LinkButton>
+      <Card className="mt-6 p-8">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">Reader profile</p>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">{t("profile.readerEyebrow")}</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
               {user.display_name}
             </h1>
@@ -208,17 +203,18 @@ export function PublicProfilePage() {
           <Presence isOnline={user.is_online} />
         </div>
         <div className="mt-8 border-t border-slate-100 pt-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">About</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">{t("profile.about")}</h2>
           <p className="mt-3 whitespace-pre-wrap leading-7 text-slate-700">
-            {user.bio || "This reader has not added a biography yet."}
+            {user.bio || t("profile.publicBioNone")}
           </p>
         </div>
-      </div>
+      </Card>
     </section>
   );
 }
 
 export function PeoplePage() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const peopleQuery = useQuery({
@@ -238,42 +234,29 @@ export function PeoplePage() {
 
   return (
     <section className="mx-auto max-w-5xl">
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">Library community</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Find people</h1>
-          <p className="mt-3 text-slate-600">Search public reader profiles by display name.</p>
-        </div>
-        <Link className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700" to="/profile">
-          Edit your profile
-        </Link>
-      </div>
+      <PageHeader
+        actions={<LinkButton size="sm" to="/profile" variant="secondary">{t("people.editProfile")}</LinkButton>}
+        description={t("people.description")}
+        eyebrow={t("people.eyebrow")}
+        title={t("people.title")}
+      />
       <form className="mt-8 flex flex-col gap-3 sm:flex-row" onSubmit={submit}>
-        <label className="sr-only" htmlFor="people-search">Search people</label>
-        <input
-          className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3"
-          id="people-search"
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search display names"
-          value={query}
-        />
-        <button className="rounded-xl bg-slate-950 px-5 py-3 font-medium text-white" type="submit">
-          Search
-        </button>
+        <FormField className="min-w-0 flex-1" htmlFor="people-search" label={t("people.searchLabel")}>
+          <Input id="people-search" onChange={(event) => setQuery(event.target.value)} placeholder={t("people.searchPlaceholder")} value={query} />
+        </FormField>
+        <Button className="self-end" type="submit">{t("people.search")}</Button>
       </form>
       {peopleQuery.isLoading ? (
-        <PageMessage title="Loading people…" detail="Finding public reader profiles." />
+        <LoadingState title={t("people.loadingTitle")} detail={t("people.loadingDetail")} />
       ) : peopleQuery.error ? (
-        <PageMessage title="People directory unavailable" detail="Please try again in a moment." />
+        <PageMessage title={t("people.unavailableTitle")} detail={t("people.unavailableDetail")} />
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {(peopleQuery.data?.items ?? []).map((person) => (
             <ProfileCard key={person.id} user={person} />
           ))}
           {peopleQuery.data?.items.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-slate-300 p-8 text-slate-600 sm:col-span-2">
-              No public profiles matched that search.
-            </p>
+            <EmptyState className="sm:col-span-2" detail={t("people.noMatch")} title={t("people.noMatch")} />
           ) : null}
         </div>
       )}
@@ -283,9 +266,9 @@ export function PeoplePage() {
 
 function PageMessage({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+    <Card className="mx-auto mt-8 max-w-3xl p-8 text-center">
       <h1 className="text-xl font-semibold text-slate-950">{title}</h1>
       <p className="mt-2 text-slate-600">{detail}</p>
-    </div>
+    </Card>
   );
 }

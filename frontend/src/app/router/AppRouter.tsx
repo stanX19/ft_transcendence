@@ -18,9 +18,11 @@ import { PrivacyPage, TermsPage } from "../../features/legal";
 import { OwnProfilePage, PeoplePage, PublicProfilePage } from "../../features/users";
 import { AssistantPage } from "../../features/assistant";
 import { Button, Card, LinkButton, PageHeader } from "../../shared/components";
+import { LanguageSwitcher, useTranslation } from "../../shared/i18n";
 
 function AppShell() {
   const { user, isLoading, logout } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const canManageCatalog = user?.role === "LIBRARIAN" || user?.role === "ADMIN";
 
@@ -41,31 +43,32 @@ function AppShell() {
           <Link className="text-xl font-semibold tracking-tight" to="/">
             LibraryOS
           </Link>
-          <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <Link className="text-muted hover:text-ink" to="/books">Books</Link>
+          <nav aria-label={t("nav.main")} className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Link className="text-muted hover:text-ink" to="/books">{t("nav.books")}</Link>
             {user ? (
               <>
-                <Link className="text-muted hover:text-ink" to="/people">People</Link>
-                <Link className="text-muted hover:text-ink" to="/friends">Friends</Link>
-                <Link className="text-muted hover:text-ink" to="/loans">My loans</Link>
-                <Link className="text-muted hover:text-ink" to="/assistant">AI Assistant</Link>
-                <Link className="text-muted hover:text-ink" to="/profile">Profile</Link>
-                {canManageCatalog ? <Link className="text-muted hover:text-ink" to="/admin/import-export">Import / Export</Link> : null}
-                {user.role === "ADMIN" ? <Link className="text-muted hover:text-ink" to="/admin/users">Admin</Link> : null}
+                <Link className="text-muted hover:text-ink" to="/people">{t("nav.people")}</Link>
+                <Link className="text-muted hover:text-ink" to="/friends">{t("nav.friends")}</Link>
+                <Link className="text-muted hover:text-ink" to="/loans">{t("nav.loans")}</Link>
+                <Link className="text-muted hover:text-ink" to="/assistant">{t("nav.assistant")}</Link>
+                <Link className="text-muted hover:text-ink" to="/profile">{t("nav.profile")}</Link>
+                {canManageCatalog ? <Link className="text-muted hover:text-ink" to="/admin/import-export">{t("nav.importExport")}</Link> : null}
+                {user.role === "ADMIN" ? <Link className="text-muted hover:text-ink" to="/admin/users">{t("nav.admin")}</Link> : null}
                 <Button onClick={handleLogout} size="sm" variant="ghost" type="button">
-                  Log out
+                  {t("nav.logout")}
                 </Button>
               </>
             ) : isLoading ? (
-              <span className="text-muted" role="status">Checking session…</span>
+              <span className="text-muted" role="status">{t("nav.checkingSession")}</span>
             ) : (
               <>
-                <Link className="text-muted hover:text-ink" to="/login">Log in</Link>
+                <Link className="text-muted hover:text-ink" to="/login">{t("nav.login")}</Link>
                 <LinkButton size="sm" to="/register">
-                  Register
+                  {t("nav.register")}
                 </LinkButton>
               </>
             )}
+            <LanguageSwitcher />
           </nav>
         </div>
       </header>
@@ -74,10 +77,10 @@ function AppShell() {
       </main>
       <footer className="border-t border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6 text-sm text-muted">
-          <span>A calmer way to manage a library</span>
-          <nav aria-label="Legal navigation" className="flex gap-4">
-            <Link className="hover:text-ink" to="/privacy">Privacy Policy</Link>
-            <Link className="hover:text-ink" to="/terms">Terms of Service</Link>
+          <span>{t("footer.tagline")}</span>
+          <nav aria-label={t("nav.legal")} className="flex gap-4">
+            <Link className="hover:text-ink" to="/privacy">{t("footer.privacy")}</Link>
+            <Link className="hover:text-ink" to="/terms">{t("footer.terms")}</Link>
           </nav>
         </div>
       </footer>
@@ -86,16 +89,18 @@ function AppShell() {
 }
 
 function LandingPage() {
+  const { t } = useTranslation();
+
   return (
     <section className="py-8 sm:py-12">
       <PageHeader
-        description="Browse the catalog, keep track of loans, and stay connected with your library community."
-        eyebrow="Library management"
-        title="Find your next good read."
+        description={t("landing.description")}
+        eyebrow={t("landing.eyebrow")}
+        title={t("landing.title")}
         actions={
           <>
-            <LinkButton size="lg" to="/books">Browse books</LinkButton>
-            <LinkButton size="lg" to="/register" variant="secondary">Join the library</LinkButton>
+            <LinkButton size="lg" to="/books">{t("landing.browse")}</LinkButton>
+            <LinkButton size="lg" to="/register" variant="secondary">{t("landing.join")}</LinkButton>
           </>
         }
       />
@@ -105,13 +110,14 @@ function LandingPage() {
 
 function ProtectedRoute() {
   const { user, isLoading, error } = useAuth();
+  const { t } = useTranslation();
   const location = useLocation();
 
   if (isLoading) {
-    return <RouteMessage title="Checking your session…" detail="Please wait while we verify your account." />;
+    return <RouteMessage title={t("route.checkingTitle")} detail={t("route.checkingDetail")} />;
   }
   if (error) {
-    return <RouteMessage title="We could not verify your session" detail="Refresh the page and try again." />;
+    return <RouteMessage title={t("route.verifyTitle")} detail={t("route.verifyDetail")} />;
   }
   if (!user) {
     return <Navigate replace state={{ from: location.pathname }} to="/login" />;
@@ -126,6 +132,11 @@ function RouteMessage({ title, detail }: { title: string; detail: string }) {
       <p className="mt-2 text-muted">{detail}</p>
     </Card>
   );
+}
+
+function NotFoundPage() {
+  const { t } = useTranslation();
+  return <RouteMessage title={t("route.notFoundTitle")} detail={t("route.notFoundDetail")} />;
 }
 
 const router = createBrowserRouter([
@@ -153,7 +164,7 @@ const router = createBrowserRouter([
           { path: "admin/import-export", element: <ImportExportPage /> },
         ],
       },
-      { path: "*", element: <RouteMessage title="Page not found" detail="That LibraryOS page does not exist." /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
 ]);

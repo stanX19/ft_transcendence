@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { ApiError, apiRequest } from "../../shared/api";
+import { Button, Card, EmptyState, ErrorAlert, LinkButton, PageHeader } from "../../shared/components";
+import { useTranslation } from "../../shared/i18n";
 
 interface Loan {
   id: number;
@@ -20,8 +22,8 @@ interface MyLoansResponse {
   history: Loan[];
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
+function formatDate(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value));
 }
 
 function LoansMessage({ title, detail }: { title: string; detail: string }) {
@@ -42,6 +44,8 @@ function LoanCard({
   onReturn?: (loanId: number) => void;
   isReturning?: boolean;
 }) {
+  const { locale, t } = useTranslation();
+
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -58,22 +62,23 @@ function LoanCard({
             onClick={() => onReturn(loan.id)}
             type="button"
           >
-            {isReturning ? "Returning…" : "Return book"}
+            {isReturning ? t("loan.returning") : t("loan.returnBook")}
           </button>
         ) : (
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">Returned</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{t("loan.returned")}</span>
         )}
       </div>
       <dl className="mt-5 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-        <div><dt className="text-slate-500">Borrowed</dt><dd className="font-medium text-slate-950">{formatDate(loan.borrowed_at)}</dd></div>
-        <div><dt className="text-slate-500">Due</dt><dd className="font-medium text-slate-950">{formatDate(loan.due_at)}</dd></div>
-        {loan.returned_at ? <div><dt className="text-slate-500">Returned</dt><dd className="font-medium text-slate-950">{formatDate(loan.returned_at)}</dd></div> : null}
+        <div><dt className="text-slate-500">{t("loan.borrowed")}</dt><dd className="font-medium text-slate-950">{formatDate(loan.borrowed_at, locale)}</dd></div>
+        <div><dt className="text-slate-500">{t("loan.due")}</dt><dd className="font-medium text-slate-950">{formatDate(loan.due_at, locale)}</dd></div>
+        {loan.returned_at ? <div><dt className="text-slate-500">{t("loan.returnedAt")}</dt><dd className="font-medium text-slate-950">{formatDate(loan.returned_at, locale)}</dd></div> : null}
       </dl>
     </article>
   );
 }
 
 export function LoansPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [returningId, setReturningId] = useState<number | null>(null);
   const [returnError, setReturnError] = useState<string | null>(null);
@@ -96,51 +101,49 @@ export function LoansPage() {
     } catch (error) {
       setReturnError(
         error instanceof ApiError && error.status === 403
-          ? "You can only return your own loans."
-          : "We could not return this book. Please try again.",
+          ? t("loan.onlyOwnError")
+          : t("loan.returnError"),
       );
     } finally {
       setReturningId(null);
     }
   }
 
-  if (loansQuery.isLoading) return <LoansMessage title="Loading your loans…" detail="Fetching your current borrowing history." />;
-  if (loansQuery.error) return <LoansMessage title="Loans unavailable" detail="We could not load your loans. Please try again." />;
-  if (!loansQuery.data) return <LoansMessage title="Loans unavailable" detail="No loan data was returned." />;
+  if (loansQuery.isLoading) return <LoansMessage title={t("loan.loadingTitle")} detail={t("loan.loadingDetail")} />;
+  if (loansQuery.error) return <LoansMessage title={t("loan.unavailableTitle")} detail={t("loan.unavailableDetail")} />;
+  if (!loansQuery.data) return <LoansMessage title={t("loan.unavailableTitle")} detail={t("loan.noDataDetail")} />;
 
   const { active, history } = loansQuery.data;
   return (
     <section className="mx-auto max-w-4xl">
-      <p className="text-sm font-medium uppercase tracking-[0.18em] text-sky-700">Your library account</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">My loans</h1>
-      <p className="mt-3 max-w-2xl text-slate-600">Keep track of what you have borrowed and when it is due.</p>
-      {returnError ? <p className="mt-6 rounded-xl bg-rose-50 p-3 text-sm text-rose-700" role="alert">{returnError}</p> : null}
+      <PageHeader description={t("loan.description")} eyebrow={t("loan.eyebrow")} title={t("loan.title")} />
+      {returnError ? <ErrorAlert className="mt-6" message={returnError} /> : null}
 
       <div className="mt-10">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold text-slate-950">Active</h2>
-          <span className="text-sm text-slate-500">{active.length} {active.length === 1 ? "book" : "books"}</span>
+          <h2 className="text-xl font-semibold text-slate-950">{t("loan.active")}</h2>
+          <span className="text-sm text-slate-500">{t(active.length === 1 ? "loan.bookCount.one" : "loan.bookCount.other", { count: active.length })}</span>
         </div>
         {active.length > 0 ? (
           <div className="mt-4 space-y-4">
             {active.map((loan) => <LoanCard isReturning={returningId === loan.id} key={loan.id} loan={loan} onReturn={returnBook} />)}
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-slate-600">You have no active loans. <Link className="font-medium text-sky-700" to="/books">Browse the catalog</Link>.</div>
+          <EmptyState action={<LinkButton size="sm" to="/books">{t("loan.browseCatalog")}</LinkButton>} detail={t("loan.noActivePrefix")} title={t("loan.active")} />
         )}
       </div>
 
       <div className="mt-12">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold text-slate-950">History</h2>
-          <span className="text-sm text-slate-500">{history.length} {history.length === 1 ? "book" : "books"}</span>
+          <h2 className="text-xl font-semibold text-slate-950">{t("loan.history")}</h2>
+          <span className="text-sm text-slate-500">{t(history.length === 1 ? "loan.bookCount.one" : "loan.bookCount.other", { count: history.length })}</span>
         </div>
         {history.length > 0 ? (
           <div className="mt-4 space-y-4">
             {history.map((loan) => <LoanCard key={loan.id} loan={loan} />)}
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-slate-600">Returned books will appear here.</div>
+          <EmptyState detail={t("loan.historyEmpty")} title={t("loan.history")} />
         )}
       </div>
     </section>

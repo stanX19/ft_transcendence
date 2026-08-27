@@ -1,6 +1,8 @@
 import { useRef, useState, type ChangeEvent } from "react";
 
 import { ApiError } from "../../shared/api";
+import { Button, ErrorAlert } from "../../shared/components";
+import { useTranslation } from "../../shared/i18n";
 
 export interface UploadedFile {
   id: number;
@@ -86,6 +88,7 @@ export function FileUpload({
   fields,
   onUploaded,
 }: FileUploadProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
@@ -97,7 +100,7 @@ export function FileUpload({
     setError(null);
     setSelectedFile(nextFile);
     if (nextFile && nextFile.size > MAX_UPLOAD_BYTES) {
-      setError("Choose a file smaller than 10 MB.");
+      setError(t("file.tooLarge"));
     }
   }
 
@@ -115,10 +118,8 @@ export function FileUpload({
     } catch (uploadError) {
       setError(
         uploadError instanceof ApiError && uploadError.status === 422
-          ? "That file is not a supported or valid upload."
-          : uploadError instanceof Error
-            ? uploadError.message
-            : "The upload could not be completed.",
+          ? t("file.invalid")
+          : t("file.genericError"),
       );
     } finally {
       setIsUploading(false);
@@ -141,26 +142,27 @@ export function FileUpload({
             ref={inputRef}
             type="file"
           />
-          <button
-            className="rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+          <Button
             disabled={!selectedFile || Boolean(error) || isUploading}
+            loading={isUploading}
             onClick={() => void upload()}
+            size="sm"
             type="button"
           >
-            {isUploading ? "Uploading…" : "Upload"}
-          </button>
+            {isUploading ? t("file.uploading") : t("file.upload")}
+          </Button>
         </div>
       </div>
       {isUploading || progress === 100 ? (
         <div className="mt-3" aria-live="polite">
           <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>{isUploading ? "Uploading file" : "Upload complete"}</span>
+            <span>{isUploading ? t("file.uploadingFile") : t("file.uploadComplete")}</span>
             <span>{progress}%</span>
           </div>
-          <progress aria-label="Upload progress" className="mt-1 h-2 w-full accent-sky-700" max={100} value={progress} />
+          <progress aria-label={t("file.progress")} className="mt-1 h-2 w-full accent-sky-700" max={100} value={progress} />
         </div>
       ) : null}
-      {error ? <p className="mt-3 text-sm text-rose-700" role="alert">{error}</p> : null}
+      {error ? <ErrorAlert className="mt-3" message={error} /> : null}
     </div>
   );
 }

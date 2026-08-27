@@ -6,7 +6,10 @@ from fastapi import FastAPI
 
 from app.core.errors import register_error_handlers
 from app.features.auth.router import router as auth_router
+from app.features.admin.router import router as admin_router
 from app.features.books.router import router as books_router
+from app.features.files.router import router as files_router
+from app.features.friends.router import router as friends_router
 from app.features.loans.router import router as loans_router
 from app.features.users.router import router as users_router
 
@@ -23,7 +26,10 @@ def create_app() -> FastAPI:
     )
     register_error_handlers(app)
     app.include_router(auth_router)
+    app.include_router(admin_router)
     app.include_router(books_router)
+    app.include_router(files_router)
+    app.include_router(friends_router)
     app.include_router(loans_router)
     app.include_router(users_router)
 

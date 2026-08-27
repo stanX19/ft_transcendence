@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     gemini_model: str = ""
 
     upload_max_mb: int = Field(default=10, gt=0)
+    upload_dir: str = "/app/uploads"
     ai_rate_limit_per_minute: int = Field(default=10, gt=0)
     online_threshold_seconds: int = Field(default=120, gt=0)
     loan_days: int = Field(default=14, gt=0)

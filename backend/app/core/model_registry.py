@@ -7,6 +7,8 @@ the application.
 """
 
 from app.core.database import Base
+from app.features.files.models import FileAsset
+from app.features.friends.models import Friendship
 from app.features.books.models import Book
 from app.features.loans.models import Loan
 from app.features.users.models import User

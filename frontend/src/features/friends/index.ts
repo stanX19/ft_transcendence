@@ -1,2 +1,1 @@
-/** Friends and presence screens live in this vertical feature package. */
-export {};
+export { FriendsPage } from "./FriendsPages";

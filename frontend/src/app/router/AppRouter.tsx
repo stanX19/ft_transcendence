@@ -10,6 +10,8 @@ import {
 
 import { LoginPage, RegisterPage } from "../../features/auth/AuthPages";
 import { BookDetailPage, BooksPage } from "../../features/books";
+import { AdminUsersPage } from "../../features/admin";
+import { FriendsPage } from "../../features/friends";
 import { LoansPage } from "../../features/loans";
 import { useAuth } from "../../features/auth";
 import { PrivacyPage, TermsPage } from "../../features/legal";
@@ -41,8 +43,10 @@ function AppShell() {
             {user ? (
               <>
                 <Link className="text-slate-600 hover:text-slate-950" to="/people">People</Link>
+                <Link className="text-slate-600 hover:text-slate-950" to="/friends">Friends</Link>
                 <Link className="text-slate-600 hover:text-slate-950" to="/loans">My loans</Link>
                 <Link className="text-slate-600 hover:text-slate-950" to="/profile">Profile</Link>
+                {user.role === "ADMIN" ? <Link className="text-slate-600 hover:text-slate-950" to="/admin/users">Admin</Link> : null}
                 <button className="font-medium text-sky-700 hover:text-sky-900" onClick={handleLogout} type="button">
                   Log out
                 </button>
@@ -141,7 +145,9 @@ const router = createBrowserRouter([
         children: [
           { path: "profile", element: <OwnProfilePage /> },
           { path: "people", element: <PeoplePage /> },
+          { path: "friends", element: <FriendsPage /> },
           { path: "loans", element: <LoansPage /> },
+          { path: "admin/users", element: <AdminUsersPage /> },
         ],
       },
       { path: "*", element: <RouteMessage title="Page not found" detail="That LibraryOS page does not exist." /> },

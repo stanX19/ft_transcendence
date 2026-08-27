@@ -41,6 +41,28 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Resolve a session when present without making public file reads private."""
+
+    from app.core.config import get_settings
+
+    token = request.cookies.get(get_settings().session_cookie_name)
+    if not token:
+        return None
+    claims = decode_access_token(token)
+    subject = claims.get("sub") if claims else None
+    try:
+        user_id = int(subject)
+    except (TypeError, ValueError):
+        return None
+    if user_id <= 0:
+        return None
+    return db.scalar(select(User).where(User.id == user_id))
+
+
 def require_roles(*roles: str):
     """Build a dependency that permits only the listed backend roles."""
 

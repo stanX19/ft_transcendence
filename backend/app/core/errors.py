@@ -19,6 +19,7 @@ _HTTP_ERROR_MESSAGES: Mapping[int, tuple[str, str]] = {
     403: ("forbidden", "You do not have permission to perform this action."),
     404: ("not_found", "The requested resource was not found."),
     409: ("conflict", "The request conflicts with the current state."),
+    422: ("validation_error", "The request contains invalid or missing values."),
     429: ("rate_limited", "Too many requests."),
 }
 

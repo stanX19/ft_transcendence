@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError, apiRequest } from "../../shared/api";
 import type { PublicUser, UserDirectoryResponse } from "../../shared/types";
 import { useAuth } from "../auth";
+import { FileUpload, type UploadedFile } from "../files";
 
 function Presence({ isOnline }: { isOnline: boolean }) {
   return (
@@ -44,6 +45,7 @@ export function OwnProfilePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [avatar, setAvatar] = useState<UploadedFile | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -98,11 +100,30 @@ export function OwnProfilePage() {
       </div>
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-xl font-semibold text-sky-800">
+              {avatar ? <img alt="Your avatar" className="h-full w-full object-cover" src={avatar.url} /> : user.display_name.slice(0, 2).toUpperCase()}
+            </div>
+            <div>
             <p className="font-semibold text-slate-950">{user.email}</p>
             <p className="mt-1 text-sm text-slate-500">Role: {user.role}</p>
+            </div>
           </div>
           <Presence isOnline={user.is_online} />
+        </div>
+        <div className="mb-8 border-b border-slate-100 pb-8">
+          <FileUpload
+            accept="image/jpeg,image/png,image/webp"
+            endpoint="/api/users/me/avatar"
+            helper="JPEG, PNG, or WebP. Maximum 10 MB."
+            label="Profile avatar"
+            onUploaded={setAvatar}
+          />
+          {avatar ? (
+            <button className="mt-3 text-sm font-medium text-rose-700 hover:text-rose-900" onClick={() => { void apiRequest("/api/users/me/avatar", { method: "DELETE" }).then(() => setAvatar(null)).catch(() => setError("We could not remove your avatar.")); }} type="button">
+              Remove avatar
+            </button>
+          ) : null}
         </div>
         <form className="space-y-5" onSubmit={submit}>
           <div>

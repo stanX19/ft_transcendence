@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, apiRequest } from "../../shared/api";
+import { FileUpload, type UploadedFile } from "../files";
 import { useAuth } from "../auth";
 
 export interface Book {
@@ -329,6 +330,8 @@ export function BookDetailPage() {
   const [borrowError, setBorrowError] = useState<string | null>(null);
   const [borrowMessage, setBorrowMessage] = useState<string | null>(null);
   const [isBorrowing, setIsBorrowing] = useState(false);
+  const [assets, setAssets] = useState<UploadedFile[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
   const bookQuery = useQuery({
     queryKey: ["books", bookId],
     queryFn: () => apiRequest<BookResponse>(`/api/books/${bookId}`),
@@ -374,6 +377,21 @@ export function BookDetailPage() {
     } catch (error) {
       setDeleteError(errorMessage(error, "We could not delete this book. Please try again."));
     }
+  }
+
+  async function removeAsset(asset: UploadedFile) {
+    setFileError(null);
+    try {
+      await apiRequest(`/api/files/${asset.id}`, { method: "DELETE" });
+      setAssets((current) => current.filter((item) => item.id !== asset.id));
+    } catch {
+      setFileError("We could not delete that file. Please try again.");
+    }
+  }
+
+  function addAsset(asset: UploadedFile) {
+    setFileError(null);
+    setAssets((current) => asset.kind === "BOOK_COVER" ? [...current.filter((item) => item.kind !== "BOOK_COVER"), asset] : [...current, asset]);
   }
 
   return (
@@ -426,6 +444,28 @@ export function BookDetailPage() {
             </div>
             {deleteError ? <p className="mt-3 text-sm text-rose-700" role="alert">{deleteError}</p> : null}
             {editing ? <BookForm book={book} onCancel={() => setEditing(false)} onSaved={(saved) => { setEditing(false); queryClient.setQueryData(["books", bookId], { book: saved }); }} /> : null}
+            <div className="mt-8 border-t border-slate-100 pt-6">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">Book files</h2>
+              <p className="mt-2 text-sm text-slate-600">Add a cover preview or a reference PDF. Files are served through protected application routes.</p>
+              <div className="mt-4 space-y-3">
+                <FileUpload accept="image/jpeg,image/png,image/webp" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_COVER" }} helper="JPEG, PNG, or WebP. Maximum 10 MB." label="Book cover" onUploaded={addAsset} />
+                <FileUpload accept="application/pdf" endpoint={`/api/books/${book.id}/files`} fields={{ kind: "BOOK_DOCUMENT" }} helper="PDF only. Maximum 10 MB." label="Book document" onUploaded={addAsset} />
+              </div>
+              {fileError ? <p className="mt-3 text-sm text-rose-700" role="alert">{fileError}</p> : null}
+              {assets.length > 0 ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  {assets.map((asset) => (
+                    <div className="rounded-xl border border-slate-200 p-3" key={asset.id}>
+                      {asset.mime_type.startsWith("image/") ? <img alt={asset.original_filename} className="h-40 w-full rounded-lg object-cover" src={asset.url} /> : <a className="block rounded-lg bg-slate-50 p-6 font-medium text-sky-800 hover:text-sky-950" href={asset.url}>{asset.original_filename}</a>}
+                      <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate text-slate-600">{asset.original_filename}</span>
+                        <button className="font-medium text-rose-700 hover:text-rose-900" onClick={() => void removeAsset(asset)} type="button">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

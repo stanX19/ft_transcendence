@@ -7,13 +7,41 @@ It is suitable for local startup and never calls Gemini or a remote catalog.
 from __future__ import annotations
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import SessionLocal
+from app.core.security import hash_password
 from app.features.books.models import Book
+from app.features.users.models import User, UserRole
 
 
 SEED_SLUG_PREFIX = "libraryos-seed-"
 SEED_BOOK_COUNT = 600
+
+# These accounts are intentionally reserved for local/evaluation use. They
+# use the reserved example.test domain and are only created by the checked-in
+# deterministic seed; never reuse these credentials in a shared deployment.
+DEMO_ACCOUNTS: tuple[dict[str, str], ...] = (
+    {
+        "email": "member.demo@example.test",
+        "password": "LibraryOS-member-demo-2026!",
+        "display_name": "Demo Member",
+        "role": "MEMBER",
+    },
+    {
+        "email": "librarian.demo@example.test",
+        "password": "LibraryOS-librarian-demo-2026!",
+        "display_name": "Demo Librarian",
+        "role": "LIBRARIAN",
+    },
+    {
+        "email": "admin.demo@example.test",
+        "password": "LibraryOS-admin-demo-2026!",
+        "display_name": "Demo Administrator",
+        "role": "ADMIN",
+    },
+)
 
 _TITLES = (
     "The Atlas of Quiet Rivers",
@@ -78,10 +106,45 @@ _DESCRIPTION_TOPICS = (
 )
 
 
+def _seed_demo_accounts(db: Session) -> bool:
+    """Create or normalize the deterministic local evaluator accounts."""
+
+    emails = [account["email"] for account in DEMO_ACCOUNTS]
+    existing = {
+        user.email: user
+        for user in db.scalars(select(User).where(User.email.in_(emails))).all()
+    }
+    changed = False
+    for account in DEMO_ACCOUNTS:
+        expected_role = UserRole(account["role"])
+        user = existing.get(account["email"])
+        if user is None:
+            db.add(
+                User(
+                    email=account["email"],
+                    password_hash=hash_password(account["password"]),
+                    display_name=account["display_name"],
+                    role=expected_role,
+                )
+            )
+            changed = True
+            continue
+        if user.display_name != account["display_name"]:
+            user.display_name = account["display_name"]
+            changed = True
+        if user.role != expected_role:
+            user.role = expected_role
+            changed = True
+    return changed
+
+
 def seed() -> None:
     """Insert the deterministic local catalog, leaving existing rows intact."""
 
+    if not get_settings().seed_demo_data:
+        return
     with SessionLocal() as db:
+        changed = _seed_demo_accounts(db)
         existing_slugs = set(
             db.scalars(
                 select(Book.slug).where(Book.slug.like(f"{SEED_SLUG_PREFIX}%"))
@@ -116,6 +179,8 @@ def seed() -> None:
             )
         if books:
             db.add_all(books)
+            changed = True
+        if changed:
             db.commit()
 
 

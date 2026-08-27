@@ -57,6 +57,19 @@ Never copy or import the private key. The certificate covers `localhost` and
 The API is intentionally not published as a host port. Browser traffic goes
 through Nginx over HTTPS, and backend secrets remain in the API container.
 
+### Local evaluator accounts
+
+With `SEED_DEMO_DATA=true` (the local `.env.example` default), startup creates
+these reserved evaluation accounts. They use the non-routable `example.test`
+domain and are for local rehearsal only; set `SEED_DEMO_DATA=false` for a
+shared or production deployment and never reuse these passwords.
+
+| Role | Email | Password |
+|---|---|---|
+| Member | `member.demo@example.test` | `LibraryOS-member-demo-2026!` |
+| Librarian | `librarian.demo@example.test` | `LibraryOS-librarian-demo-2026!` |
+| Admin | `admin.demo@example.test` | `LibraryOS-admin-demo-2026!` |
+
 ## Technical stack and rationale
 
 - **Frontend:** React, TypeScript, Vite, React Router, TanStack Query,

@@ -38,6 +38,7 @@ def test_retriever_searches_all_catalog_text_fields_without_gemini(
     from app.core.config import get_settings
 
     monkeypatch.setattr(get_settings(), "gemini_api_key", "")
+    monkeypatch.setattr(get_settings(), "gemini_api_key_list", [])
 
     # If retrieval reaches out to Gemini, this test must fail. RAG retrieval is
     # deliberately local and should not construct a provider at all.

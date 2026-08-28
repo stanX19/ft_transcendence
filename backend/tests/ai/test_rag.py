@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import json
+import logging
 
 
 def _field(value: object, name: str) -> object:
@@ -80,6 +82,7 @@ def test_grounded_answer_can_use_a_fake_provider_without_gemini_configuration(
     from app.features.books.models import Book
 
     monkeypatch.setattr(get_settings(), "gemini_api_key", "")
+    monkeypatch.setattr(get_settings(), "gemini_api_key_list", [])
 
     source = RetrievedBook(
         book=Book(
@@ -120,3 +123,62 @@ def test_grounded_answer_can_use_a_fake_provider_without_gemini_configuration(
 
     assert _field(result, "answer") == "Generated entirely with the fake provider."
     assert _field(_field(result, "sources")[0], "book_id") == 9
+
+
+def test_rag_logs_source_count_with_correlation_without_prompt_content(
+    monkeypatch,
+    caplog,
+) -> None:
+    from app.features.ai.rag import RetrievedBook
+    from app.features.ai.service import answer_question
+    from app.features.books.models import Book
+
+    source = RetrievedBook(
+        book=Book(
+            id=11,
+            title="Telemetry source book",
+            author="Telemetry author",
+            description="Catalog evidence for telemetry.",
+            category="RAG QA",
+            total_copies=1,
+            available_copies=1,
+        ),
+        rank=1.0,
+    )
+    question = "private prompt marker must not be logged"
+
+    class FakeProvider:
+        def generate(
+            self,
+            *,
+            prompt: str,
+            system_instruction: str | None = None,
+            history=(),
+        ) -> str:
+            del prompt, system_instruction, history
+            return "Safe grounded answer."
+
+    import app.features.ai.service as service_module
+
+    monkeypatch.setattr(
+        service_module,
+        "retrieve_books",
+        lambda db, normalized, *, limit: [source],
+    )
+    with caplog.at_level(logging.INFO, logger="app.features.ai.service"):
+        answer_question(object(), question, provider=FakeProvider())
+
+    events = [
+        json.loads(record.getMessage())
+        for record in caplog.records
+        if record.name == "app.features.ai.service"
+    ]
+    retrieval = next(
+        event
+        for event in events
+        if event["event"] == "rag_retrieval_completed"
+    )
+    assert retrieval["source_count"] == 1
+    assert retrieval["query_length"] == len(question)
+    assert retrieval["request_id"]
+    assert question not in " ".join(record.getMessage() for record in caplog.records)

@@ -92,7 +92,11 @@ shared or production deployment and never reuse these passwords.
 - **AI:** the Gemini SDK is isolated under `backend/app/features/ai/`.
   PostgreSQL full-text retrieval supplies bounded catalog context, safe
   authenticated tools supply account facts, and the browser consumes the
-  assistant through credentialed POST-SSE streaming `fetch()`.
+  assistant through credentialed POST-SSE streaming `fetch()`. Configure
+  `GEMINI_API_KEY_LIST` as a JSON array in `.env`; the provider advances to
+  the next key only on HTTP 429, wraps around, and allows three retries after
+  the initial request. AI lifecycle logs expose only event names, correlation
+  IDs, key indexes, counts, and safe error types.
 
 ## Architecture
 

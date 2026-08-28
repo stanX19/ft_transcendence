@@ -14,6 +14,7 @@ def test_missing_gemini_configuration_is_an_sse_error_not_an_api_crash(
     register = register_user(client)
     assert register.status_code == 201, register.text
     monkeypatch.setattr(get_settings(), "gemini_api_key", "")
+    monkeypatch.setattr(get_settings(), "gemini_api_key_list", [])
     ai_rate_limiter.reset()
 
     response = client.post("/api/ai/chat/stream", json={"message": "Hello"})

@@ -26,6 +26,7 @@ def test_stream_route_rejects_excess_requests_for_one_user(
     assert register.status_code == 201, register.text
     monkeypatch.setattr(get_settings(), "ai_rate_limit_per_minute", 1)
     monkeypatch.setattr(get_settings(), "gemini_api_key", "")
+    monkeypatch.setattr(get_settings(), "gemini_api_key_list", [])
     ai_rate_limiter.reset()
 
     first = client.post("/api/ai/chat/stream", json={"message": "Hello"})

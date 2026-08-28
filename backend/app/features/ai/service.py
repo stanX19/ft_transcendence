@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from collections.abc import Sequence
 import inspect
+import logging
 
 from sqlalchemy.orm import Session
 
@@ -17,8 +18,12 @@ from app.features.ai.rag import (
     retrieve_books,
 )
 from app.features.ai.schemas import AssistantAnswer, RAGAnswer
+from app.features.ai.telemetry import log_event
 from app.features.ai.tools import ToolContext, execute_tool, tool_definitions
 from app.features.users.models import User
+
+
+logger = logging.getLogger(__name__)
 
 
 GROUNDING_INSTRUCTION = (
@@ -127,6 +132,15 @@ def answer_question(
         normalized_question,
         limit=DEFAULT_RETRIEVAL_LIMIT,
     )
+    log_event(
+        logger,
+        logging.INFO,
+        "rag_retrieval_completed",
+        operation="rag_answer",
+        query_length=len(normalized_question),
+        source_count=len(retrieved),
+        retrieval_limit=DEFAULT_RETRIEVAL_LIMIT,
+    )
     context = assemble_context(retrieved)
     answer = _generate_with_context(
         provider or GeminiProvider(),
@@ -183,6 +197,15 @@ class GroundedRAGService:
             raise ValueError("A question is required.")
 
         retrieved = self.retriever.retrieve(normalized_question)
+        log_event(
+            logger,
+            logging.INFO,
+            "rag_retrieval_completed",
+            operation="grounded_rag",
+            query_length=len(normalized_question),
+            source_count=len(retrieved),
+            retrieval_limit=len(retrieved),
+        )
         context = RAGContextAssembler().assemble(retrieved)
         answer = self.provider.generate(
             build_rag_prompt(normalized_question, context)
@@ -225,6 +248,15 @@ class AssistantOrchestrator:
             question,
             limit=DEFAULT_RETRIEVAL_LIMIT,
         )
+        log_event(
+            logger,
+            logging.INFO,
+            "rag_retrieval_completed",
+            operation="assistant",
+            query_length=len(question),
+            source_count=len(retrieved),
+            retrieval_limit=DEFAULT_RETRIEVAL_LIMIT,
+        )
         return assemble_context(retrieved)
 
     def answer(
@@ -260,11 +292,21 @@ class AssistantOrchestrator:
                 system_instruction=ASSISTANT_INSTRUCTION,
                 history=history,
             )
-        return AssistantAnswer(
+        result = AssistantAnswer(
             answer=answer,
             sources=context.sources,
             tool_events=tool_events,
         )
+        log_event(
+            logger,
+            logging.INFO,
+            "assistant_answer_completed",
+            operation="assistant",
+            source_count=len(result.sources),
+            tool_event_count=len(result.tool_events),
+            answer_length=len(result.answer),
+        )
+        return result
 
     def stream(
         self,
@@ -288,6 +330,13 @@ class AssistantOrchestrator:
         ):
             if chunk:
                 yield "token", {"text": chunk}
+        log_event(
+            logger,
+            logging.INFO,
+            "assistant_generation_completed",
+            operation="assistant",
+            source_count=len(context.sources),
+        )
         yield "done", {}
 
 

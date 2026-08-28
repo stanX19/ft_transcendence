@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     public_api_rate_limit_per_minute: int = Field(default=60, gt=0)
 
     gemini_api_key: str = ""
+    gemini_api_key_list: list[str] = Field(default_factory=list)
     gemini_model: str = ""
 
     upload_max_mb: int = Field(default=10, gt=0)

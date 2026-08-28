@@ -120,6 +120,37 @@ describe("assistant page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Gemini provider is temporarily unavailable.");
   });
 
+  it("does not render provider-supplied raw error text", async () => {
+    const rawProviderError = "ClientError: 429 RESOURCE_EXHAUSTED private quota details";
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const path = requestPath(input);
+      if (path.endsWith("/api/auth/me")) {
+        return Promise.resolve(jsonResponse({ user: { id: 5, email: "reader@example.test", display_name: "Reader", bio: "", role: "MEMBER", is_online: true } }));
+      }
+      if (path.endsWith("/api/ai/chat/stream")) {
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ code: "provider_error", message: rawProviderError })}\n\n`));
+            controller.close();
+          },
+        });
+        return Promise.resolve(new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } }));
+      }
+      return Promise.resolve(jsonResponse({}, 404));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await renderAt("/assistant");
+    await screen.findByRole("heading", { name: "A helpful guide to your library." });
+    fireEvent.change(screen.getByLabelText("Ask the LibraryOS assistant"), { target: { value: "Hello" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Gemini provider is temporarily unavailable.");
+    expect(alert).not.toHaveTextContent(rawProviderError);
+  });
+
   it("navigates only to the internal path returned by the navigation tool", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const path = requestPath(input);

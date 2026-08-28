@@ -115,7 +115,16 @@ function displayToolName(name: string, t: Translator): string {
 function errorMessage(error: unknown, t: Translator): string {
   if (error instanceof ApiError && error.status === 429) return t("assistant.limitError");
   if (error instanceof ApiError && error.status === 401) return t("assistant.signInError");
-  return error instanceof Error ? error.message : t("assistant.genericError");
+  return t("assistant.genericError");
+}
+
+function streamErrorMessage(data: unknown, t: Translator): string {
+  if (!data || typeof data !== "object") return t("assistant.genericError");
+  const code = (data as { code?: unknown }).code;
+  if (code === "provider_error") return t("assistant.providerError");
+  if (code === "rate_limited") return t("assistant.limitError");
+  if (code === "unauthenticated") return t("assistant.signInError");
+  return t("assistant.genericError");
 }
 
 function SourceList({ sources }: { sources: AssistantSource[] }) {
@@ -215,8 +224,7 @@ export function AssistantPage() {
               if (tool.action) navigate(tool.action.path);
             }
           } else if (type === "error") {
-            const messageValue = data && typeof data === "object" && typeof (data as { message?: unknown }).message === "string" ? (data as { message: string }).message : t("assistant.genericError");
-            setError(messageValue);
+            setError(streamErrorMessage(data, t));
           }
         },
       });

@@ -41,37 +41,39 @@ function AppShell() {
     <div className="min-h-screen bg-canvas text-ink">
       <OfflineStatus />
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
-          <Link className="text-xl font-semibold tracking-tight" to="/">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between md:gap-4">
+          <Link className="shrink-0 text-xl font-semibold tracking-tight" to="/">
             LibraryOS
           </Link>
-          <nav aria-label={t("nav.main")} className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <Link className="text-muted hover:text-ink" to="/books">{t("nav.books")}</Link>
-            {user ? (
-              <>
-                <Link className="text-muted hover:text-ink" to="/people">{t("nav.people")}</Link>
-                <Link className="text-muted hover:text-ink" to="/friends">{t("nav.friends")}</Link>
-                <Link className="text-muted hover:text-ink" to="/loans">{t("nav.loans")}</Link>
-                <Link className="text-muted hover:text-ink" to="/assistant">{t("nav.assistant")}</Link>
-                <Link className="text-muted hover:text-ink" to="/profile">{t("nav.profile")}</Link>
-                {canManageCatalog ? <Link className="text-muted hover:text-ink" to="/admin/import-export">{t("nav.importExport")}</Link> : null}
-                {user.role === "ADMIN" ? <Link className="text-muted hover:text-ink" to="/admin/users">{t("nav.admin")}</Link> : null}
-                <Button onClick={handleLogout} size="sm" variant="ghost" type="button">
-                  {t("nav.logout")}
-                </Button>
-              </>
-            ) : isLoading ? (
-              <span className="text-muted" role="status">{t("nav.checkingSession")}</span>
-            ) : (
-              <>
-                <Link className="text-muted hover:text-ink" to="/login">{t("nav.login")}</Link>
-                <LinkButton size="sm" to="/register">
-                  {t("nav.register")}
-                </LinkButton>
-              </>
-            )}
+          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm md:justify-end">
+            <nav aria-label={t("nav.main")} className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2">
+              <Link className="text-muted hover:text-ink" to="/books">{t("nav.books")}</Link>
+              {user ? (
+                <>
+                  <Link className="text-muted hover:text-ink" to="/people">{t("nav.people")}</Link>
+                  <Link className="text-muted hover:text-ink" to="/friends">{t("nav.friends")}</Link>
+                  <Link className="text-muted hover:text-ink" to="/loans">{t("nav.loans")}</Link>
+                  <Link className="text-muted hover:text-ink" to="/assistant">{t("nav.assistant")}</Link>
+                  <Link className="text-muted hover:text-ink" to="/profile">{t("nav.profile")}</Link>
+                  {canManageCatalog ? <Link className="text-muted hover:text-ink" to="/admin/import-export">{t("nav.importExport")}</Link> : null}
+                  {user.role === "ADMIN" ? <Link className="text-muted hover:text-ink" to="/admin/users">{t("nav.admin")}</Link> : null}
+                  <Button onClick={handleLogout} size="sm" variant="ghost" type="button">
+                    {t("nav.logout")}
+                  </Button>
+                </>
+              ) : isLoading ? (
+                <span className="text-muted" role="status">{t("nav.checkingSession")}</span>
+              ) : (
+                <>
+                  <Link className="text-muted hover:text-ink" to="/login">{t("nav.login")}</Link>
+                  <LinkButton size="sm" to="/register">
+                    {t("nav.register")}
+                  </LinkButton>
+                </>
+              )}
+            </nav>
             <LanguageSwitcher />
-          </nav>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-12 sm:py-16">

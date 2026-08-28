@@ -248,6 +248,7 @@ export const ms = {
   "assistant.limitError": "Anda telah mencapai had pembantu untuk minit ini. Sila cuba lagi sebentar lagi.",
   "assistant.signInError": "Log masuk semula untuk menggunakan pembantu.",
   "assistant.genericError": "Pembantu tidak dapat melengkapkan permintaan ini.",
+  "assistant.providerError": "Penyedia Gemini tidak tersedia buat sementara.",
   "assistant.sources": "Sumber daripada katalog anda",
   "assistant.activity": "Aktiviti pembantu",
   "assistant.complete": "selesai",

@@ -248,6 +248,7 @@ export const zh = {
   "assistant.limitError": "您已达到本分钟的助手使用上限。请稍后再试。",
   "assistant.signInError": "请重新登录以使用助手。",
   "assistant.genericError": "助手无法完成此请求。",
+  "assistant.providerError": "Gemini 暂时不可用，请稍后再试。",
   "assistant.sources": "目录中的来源",
   "assistant.activity": "助手活动",
   "assistant.complete": "完成",

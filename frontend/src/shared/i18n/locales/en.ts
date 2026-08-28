@@ -246,6 +246,7 @@ export const en = {
   "assistant.limitError": "You have reached the assistant limit for this minute. Please try again shortly.",
   "assistant.signInError": "Sign in again to use the assistant.",
   "assistant.genericError": "The assistant could not complete this request.",
+  "assistant.providerError": "The Gemini provider is temporarily unavailable.",
   "assistant.sources": "Sources from your catalog",
   "assistant.activity": "Assistant activity",
   "assistant.complete": "complete",

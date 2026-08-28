@@ -139,6 +139,40 @@ def test_provider_rotates_to_next_key_after_a_rate_limit(monkeypatch) -> None:
     assert len(clients["key-two"].calls) == 1
 
 
+def test_default_provider_remembers_rotated_key_between_requests(monkeypatch) -> None:
+    from app.features.ai import provider as provider_module
+    from app.features.ai.provider import GeminiProvider
+
+    class RateLimitedError(Exception):
+        code = 429
+
+    settings = SimpleNamespace(
+        gemini_api_key="",
+        gemini_api_key_list=["persistent-one", "persistent-two"],
+        gemini_model="fake-model",
+    )
+    monkeypatch.setattr(provider_module, "get_settings", lambda: settings)
+    used_keys: list[str] = []
+
+    def client_factory(*, api_key: str):
+        class Models:
+            def generate_content(self, *, model: str, contents: str):
+                del model, contents
+                used_keys.append(api_key)
+                if api_key == "persistent-one":
+                    raise RateLimitedError()
+                return SimpleNamespace(text="Answer from the persistent key.")
+
+        return _FakeClient(Models())
+
+    monkeypatch.setattr(provider_module.genai, "Client", client_factory)
+
+    assert GeminiProvider().generate(prompt="First request") == "Answer from the persistent key."
+    assert GeminiProvider().generate(prompt="Second request") == "Answer from the persistent key."
+
+    assert used_keys == ["persistent-one", "persistent-two", "persistent-two"]
+
+
 def test_provider_retries_three_times_then_wraps_back_to_first_key(
     monkeypatch,
     caplog,

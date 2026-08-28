@@ -11,6 +11,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 import json
 import logging
+from threading import Lock
 from typing import Any, Protocol
 
 from google import genai
@@ -25,6 +26,9 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 MAX_TOOL_CALLS_PER_ROUND = 5
 MAX_TOOL_RESPONSE_CHARS = 12_000
+
+_DEFAULT_KEY_INDICES: dict[tuple[str, ...], int] = {}
+_DEFAULT_KEY_INDICES_LOCK = Lock()
 
 
 class AIProviderError(Exception):
@@ -128,14 +132,36 @@ class GeminiProvider:
         settings: Settings | None = None,
         client: Any | None = None,
     ) -> None:
+        uses_default_settings = settings is None
         self.settings = settings or get_settings()
         self._api_keys = self._configured_api_keys(api_key)
-        self._key_index = 0
+        self._shared_rotation = (
+            uses_default_settings and api_key is None and client is None
+        )
+        self._key_index = self._initial_key_index()
         self._api_key = self._api_keys[0] if self._api_keys else ""
         self._injected_client = client
         self._client = client
         self._clients: dict[int, Any] = {}
         self._model = model or self.settings.gemini_model or "gemini-3.6-flash"
+
+    def _initial_key_index(self) -> int:
+        """Start default application providers at the current key-ring slot."""
+
+        if not self._api_keys or not self._shared_rotation:
+            return 0
+        with _DEFAULT_KEY_INDICES_LOCK:
+            return _DEFAULT_KEY_INDICES.get(self._api_keys, 0) % len(self._api_keys)
+
+    def _remember_key_index(self, previous_index: int, next_index: int) -> None:
+        """Persist a rotation without allowing a stale request to move backward."""
+
+        if not self._shared_rotation:
+            return
+        with _DEFAULT_KEY_INDICES_LOCK:
+            current_index = _DEFAULT_KEY_INDICES.get(self._api_keys, previous_index)
+            if current_index == previous_index:
+                _DEFAULT_KEY_INDICES[self._api_keys] = next_index
 
     def _configured_api_keys(self, api_key: str | None) -> tuple[str, ...]:
         """Resolve the ordered key list while retaining legacy compatibility."""
@@ -246,6 +272,7 @@ class GeminiProvider:
             return
         previous_index = self._key_index
         self._key_index = (self._key_index + 1) % len(self._api_keys)
+        self._remember_key_index(previous_index, self._key_index)
         self._client = None
         log_event(
             logger,

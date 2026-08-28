@@ -273,13 +273,19 @@ Gemini providers. From `project/`, the production web build is:
 docker compose build web
 ```
 
-In this orchestration workspace, the isolated backend test helper is one
-directory above the submission repository:
+After the stack is running, a teammate can run the complete backend suite from
+the cloned repository itself:
 
 ```bash
-# run from the workspace root, not from project/
-bash scripts/api_test.sh -q
+docker compose run --rm --no-deps -e APP_ENV=test api pytest -q
 ```
+
+This command uses the isolated `libraryos_test` database selected by
+`APP_ENV=test`; it does not run tests against the normal catalog database. The
+Docker web build already runs the frontend Vitest suite before the Vite
+production build. The outer orchestration workspace may also provide a
+convenience wrapper at `scripts/api_test.sh`, but that helper is intentionally
+not part of this repository and is not required for a teammate clone.
 
 The web image runs Vitest before the Vite production build. The evaluator
 workspace retains session-specific command logs, review notes, and real UI

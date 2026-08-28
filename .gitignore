@@ -6,4 +6,5 @@ node_modules/
 frontend/dist/
 .DS_Store
 uploads/
+localhost.crt
 *.log

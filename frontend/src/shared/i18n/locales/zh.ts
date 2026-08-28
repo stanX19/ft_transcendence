@@ -275,6 +275,8 @@ export const zh = {
   "assistant.tool.getBookDetails": "获取书籍详情",
   "assistant.tool.getBookAvailability": "获取书籍可借状态",
   "assistant.tool.getCurrentUserLoans": "获取当前用户借阅",
+  "assistant.tool.navigateToPage": "打开 LibraryOS 页面",
+  "assistant.failed": "未完成",
   "profile.eyebrow": "您的账户",
   "profile.title": "您的个人资料",
   "profile.description": "保存帮助其他读者认识您的公开信息。",

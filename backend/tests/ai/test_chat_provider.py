@@ -364,6 +364,154 @@ def test_provider_applies_rotation_to_tool_requests(monkeypatch) -> None:
     assert used_keys == ["key-one", "key-two"]
 
 
+def test_provider_preserves_tool_call_context_for_the_follow_up_request() -> None:
+    from app.features.ai.provider import GeminiProvider
+
+    function_call = SimpleNamespace(
+        name="navigate_to_page",
+        args={"destination": "book", "book_id": 14},
+    )
+    model_content = SimpleNamespace(role="model")
+
+    class Models:
+        def __init__(self) -> None:
+            self.contents: list[object] = []
+            self.responses = [
+                SimpleNamespace(
+                    function_calls=[function_call],
+                    candidates=[SimpleNamespace(content=model_content)],
+                ),
+                SimpleNamespace(text="Opening the book page."),
+            ]
+
+        def generate_content(self, *, model: str, contents: object, config: object):
+            del model, config
+            self.contents.append(contents)
+            return self.responses.pop(0)
+
+    models = Models()
+    provider = GeminiProvider(
+        settings=SimpleNamespace(
+            gemini_api_key="fake-key",
+            gemini_model="fake-model",
+        ),
+        client=_FakeClient(models),
+    )
+
+    result = provider.generate_with_tools(
+        "Take me to book 14.",
+        tool_definitions=[
+            {
+                "name": "navigate_to_page",
+                "description": "Open a safe internal page.",
+                "parameters": {"type": "object", "properties": {}},
+            }
+        ],
+        tool_executor=lambda name, arguments: {
+            "action": "navigate",
+            "destination": arguments["destination"],
+            "path": "/books/14",
+            "book_id": 14,
+        },
+    )
+
+    assert result.text == "Opening the book page."
+    assert len(models.contents) == 2
+    follow_up = models.contents[1]
+    assert isinstance(follow_up, list)
+    assert follow_up[0].role == "user"
+    assert follow_up[1] is model_content
+    assert follow_up[2].role == "user"
+
+
+def test_provider_accepts_only_canonical_navigation_actions() -> None:
+    from app.features.ai.provider import GeminiProvider
+
+    canonical = {
+        "action": "navigate",
+        "destination": "book",
+        "path": "/books/14",
+        "book_id": 14,
+    }
+
+    assert GeminiProvider._safe_navigation_action(canonical) == canonical
+    assert GeminiProvider._safe_navigation_action({
+        **canonical,
+        "path": "https://example.com",
+    }) is None
+    assert GeminiProvider._safe_navigation_action({
+        **canonical,
+        "path": "/books/15",
+    }) is None
+    assert GeminiProvider._safe_navigation_action({
+        **canonical,
+        "destination": "unknown",
+        "path": "/unknown",
+    }) is None
+
+
+def test_provider_streams_text_after_a_tool_round() -> None:
+    from app.features.ai.provider import GeminiProvider
+
+    function_call = SimpleNamespace(
+        name="navigate_to_page",
+        args={"destination": "book", "book_id": 14},
+    )
+    model_content = SimpleNamespace(role="model")
+
+    class Models:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_content_stream(self, *, model: str, contents: object, config: object):
+            del model, contents, config
+            self.calls += 1
+            if self.calls == 1:
+                return iter([
+                    SimpleNamespace(
+                        function_calls=[function_call],
+                        candidates=[SimpleNamespace(content=model_content)],
+                    )
+                ])
+            return iter([
+                SimpleNamespace(text="Opening "),
+                SimpleNamespace(text="the book page."),
+            ])
+
+    models = Models()
+    provider = GeminiProvider(
+        settings=SimpleNamespace(
+            gemini_api_key="fake-key",
+            gemini_model="fake-model",
+        ),
+        client=_FakeClient(models),
+    )
+
+    events = list(provider.stream_with_tools(
+        "Take me to book 14.",
+        tool_definitions=[
+            {
+                "name": "navigate_to_page",
+                "description": "Open a safe internal page.",
+                "parameters": {"type": "object", "properties": {}},
+            }
+        ],
+        tool_executor=lambda name, arguments: {
+            "action": "navigate",
+            "destination": arguments["destination"],
+            "path": "/books/14",
+            "book_id": 14,
+        },
+    ))
+
+    assert events[0][0] == "tool"
+    assert events[0][1]["action"]["path"] == "/books/14"
+    assert [event[1]["text"] for event in events[1:]] == [
+        "Opening ",
+        "the book page.",
+    ]
+
+
 def test_settings_parses_the_json_key_list(monkeypatch) -> None:
     from app.core.config import Settings
 

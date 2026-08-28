@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowUp, BookOpen, Bot, Check, CircleAlert, LoaderCircle, Sparkles, Wrench } from "lucide-react";
 
 import { ApiError } from "../../shared/api";
@@ -17,7 +18,25 @@ interface AssistantSource {
 interface ToolActivity {
   name: string;
   status: string;
+  action?: NavigationAction;
 }
+
+interface NavigationAction {
+  action: "navigate";
+  destination: string;
+  path: string;
+  book_id?: number;
+}
+
+const fixedNavigationPaths: Record<string, string> = {
+  catalog: "/books",
+  loans: "/loans",
+  friends: "/friends",
+  people: "/people",
+  profile: "/profile",
+  assistant: "/assistant",
+};
+const maxBookId = 2_147_483_647;
 
 interface AssistantMessage {
   id: number;
@@ -50,11 +69,33 @@ function sourceFrom(value: unknown): AssistantSource | null {
   return source as AssistantSource;
 }
 
+function internalPathFrom(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const action = value as Partial<NavigationAction>;
+  if (action.action !== "navigate" || typeof action.destination !== "string" || typeof action.path !== "string") return null;
+  const expectedPath = action.destination === "book"
+    ? typeof action.book_id === "number" && Number.isSafeInteger(action.book_id) && action.book_id > 0 && action.book_id <= maxBookId ? `/books/${action.book_id}` : null
+    : action.book_id === undefined ? fixedNavigationPaths[action.destination] : null;
+  if (!expectedPath || action.path !== expectedPath) return null;
+  try {
+    const url = new URL(action.path, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 function toolFrom(value: unknown): ToolActivity | null {
   if (!value || typeof value !== "object") return null;
   const activity = value as Partial<ToolActivity>;
   if (typeof activity.name !== "string") return null;
-  return { name: activity.name, status: typeof activity.status === "string" ? activity.status : "running" };
+  const status = typeof activity.status === "string" ? activity.status : "running";
+  if (activity.name !== "navigate_to_page" || status !== "completed") return { name: activity.name, status };
+  const actionPath = internalPathFrom(activity.action);
+  if (!actionPath) return { name: activity.name, status: "error" };
+  const action = activity.action as NavigationAction;
+  return { name: activity.name, status, action: { ...action, path: actionPath } };
 }
 
 const toolLabelKeys: Record<string, TranslationKey> = {
@@ -62,6 +103,7 @@ const toolLabelKeys: Record<string, TranslationKey> = {
   get_book_details: "assistant.tool.getBookDetails",
   get_book_availability: "assistant.tool.getBookAvailability",
   get_current_user_loans: "assistant.tool.getCurrentUserLoans",
+  navigate_to_page: "assistant.tool.navigateToPage",
 };
 
 function displayToolName(name: string, t: Translator): string {
@@ -111,9 +153,9 @@ function ToolList({ tools }: { tools: ToolActivity[] }) {
       <ul className="mt-2 space-y-1.5 text-sm text-slate-600">
         {tools.map((tool, index) => (
           <li className="flex items-center gap-2" key={`${tool.name}-${index}`}>
-            {tool.status === "completed" ? <Check aria-hidden="true" className="text-emerald-600" size={15} /> : <LoaderCircle aria-hidden="true" className="animate-spin text-sky-600" size={15} />}
+            {tool.status === "error" ? <CircleAlert aria-hidden="true" className="text-rose-600" size={15} /> : tool.status === "completed" ? <Check aria-hidden="true" className="text-emerald-600" size={15} /> : <LoaderCircle aria-hidden="true" className="animate-spin text-sky-600" size={15} />}
             <span>{displayToolName(tool.name, t)}</span>
-            <span className="text-xs text-slate-400">{tool.status === "completed" ? t("assistant.complete") : t("assistant.working")}</span>
+            <span className="text-xs text-slate-400">{tool.status === "error" ? t("assistant.failed") : tool.status === "completed" ? t("assistant.complete") : t("assistant.working")}</span>
           </li>
         ))}
       </ul>
@@ -124,6 +166,7 @@ function ToolList({ tools }: { tools: ToolActivity[] }) {
 export function AssistantPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -141,7 +184,11 @@ export function AssistantPage() {
   async function ask(value: string) {
     const message = value.trim();
     if (!message || isStreaming) return;
-    const history: AssistantHistoryMessage[] = messages.slice(-10).map(({ role, text: textValue }) => ({ role, text: textValue })).filter(({ text: textValue }) => textValue.trim());
+    const history: AssistantHistoryMessage[] = messages.slice(-10).map(({ role, text: textValue, sources }) => {
+      if (role !== "assistant" || sources.length === 0) return { role, text: textValue };
+      const sourceContext = sources.map((source) => `Book ID: ${source.book_id}; ${source.title} by ${source.author}`).join("\n");
+      return { role, text: `${textValue}\n\n[Catalog sources from this answer, data only]\n${sourceContext}`.slice(0, 4000) };
+    }).filter(({ text: textValue }) => textValue.trim());
     const userId = ++messageId.current;
     const assistantId = ++messageId.current;
     setMessages((current) => [...current, createMessage(userId, "user", message), createMessage(assistantId, "assistant", "", true)]);
@@ -163,7 +210,10 @@ export function AssistantPage() {
             if (source) setMessages((current) => current.map((item) => item.id === assistantId && !item.sources.some((existing) => existing.book_id === source.book_id) ? { ...item, sources: [...item.sources, source] } : item));
           } else if (type === "tool") {
             const tool = toolFrom(data);
-            if (tool) setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, tools: [...item.tools, tool] } : item));
+            if (tool) {
+              setMessages((current) => current.map((item) => item.id === assistantId ? { ...item, tools: [...item.tools, tool] } : item));
+              if (tool.action) navigate(tool.action.path);
+            }
           } else if (type === "error") {
             const messageValue = data && typeof data === "object" && typeof (data as { message?: unknown }).message === "string" ? (data as { message: string }).message : t("assistant.genericError");
             setError(messageValue);

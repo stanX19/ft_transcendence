@@ -15,6 +15,17 @@ from app.features.users.models import User
 
 
 MAX_TOOL_RESULTS = 5
+MAX_LOAN_RESULTS = 20
+MAX_BOOK_ID = 2_147_483_647
+
+_NAVIGATION_PATHS = {
+    "catalog": "/books",
+    "loans": "/loans",
+    "friends": "/friends",
+    "people": "/people",
+    "profile": "/profile",
+    "assistant": "/assistant",
+}
 
 
 class ToolAuthorizationError(Exception):
@@ -34,6 +45,48 @@ class ToolContext:
 
 
 AuthenticatedToolContext = ToolContext
+
+
+def normalize_navigation_destination(value: object) -> str:
+    """Return one known destination in its canonical lowercase form."""
+
+    if not isinstance(value, str):
+        raise ToolInputError("destination must be a known LibraryOS page.")
+    destination = value.strip().lower()
+    if destination != "book" and destination not in _NAVIGATION_PATHS:
+        raise ToolInputError("The requested LibraryOS page is not available.")
+    return destination
+
+
+def canonical_navigation_action(result: object) -> dict[str, object] | None:
+    """Keep only the exact internal route shape accepted by the browser."""
+
+    if not isinstance(result, Mapping):
+        return None
+    action = result.get("action")
+    destination = result.get("destination")
+    path = result.get("path")
+    book_id = result.get("book_id")
+    if action != "navigate" or not isinstance(destination, str) or not isinstance(path, str):
+        return None
+    if destination == "book":
+        if type(book_id) is not int or not 1 <= book_id <= MAX_BOOK_ID:
+            return None
+        expected_path = f"/books/{book_id}"
+    elif destination in _NAVIGATION_PATHS and book_id is None:
+        expected_path = _NAVIGATION_PATHS[destination]
+    else:
+        return None
+    if path != expected_path:
+        return None
+    payload: dict[str, object] = {
+        "action": action,
+        "destination": destination,
+        "path": path,
+    }
+    if destination == "book":
+        payload["book_id"] = book_id
+    return payload
 
 
 def _book_payload(book: Any) -> dict[str, object]:
@@ -111,8 +164,43 @@ def get_current_user_loans(
 
     active, history = loans_service.list_user_loans(db, user_id=current_user.id)
     return {
-        "active": [_loan_payload(loan, book) for loan, book in active],
-        "history": [_loan_payload(loan, book) for loan, book in history],
+        "active": [
+            _loan_payload(loan, book)
+            for loan, book in active[:MAX_LOAN_RESULTS]
+        ],
+        "history": [
+            _loan_payload(loan, book)
+            for loan, book in history[:MAX_LOAN_RESULTS]
+        ],
+    }
+
+
+def navigate_to_page(
+    db: Session,
+    destination: str,
+    *,
+    book_id: object | None = None,
+) -> dict[str, object]:
+    """Return one validated internal route without performing an action."""
+
+    target = normalize_navigation_destination(destination)
+    if target == "book":
+        resolved_book_id = _book_id(book_id)
+        if books_service.get_book(db, resolved_book_id) is None:
+            raise ToolInputError("The requested book was not found.")
+        return {
+            "action": "navigate",
+            "destination": "book",
+            "path": f"/books/{resolved_book_id}",
+            "book_id": resolved_book_id,
+        }
+    path = _NAVIGATION_PATHS.get(target)
+    if path is None or book_id is not None:
+        raise ToolInputError("The requested LibraryOS page is not available.")
+    return {
+        "action": "navigate",
+        "destination": target,
+        "path": path,
     }
 
 
@@ -127,11 +215,15 @@ def _loan_payload(loan: Any, book: Any) -> dict[str, object]:
 
 
 def _book_id(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ToolInputError("book_id must be a positive integer.")
+    if isinstance(value, str) and not value.strip().isdecimal():
+        raise ToolInputError("book_id must be a positive integer.")
     try:
         book_id = int(value)
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         raise ToolInputError("book_id must be a positive integer.") from exc
-    if book_id <= 0:
+    if book_id <= 0 or book_id > MAX_BOOK_ID:
         raise ToolInputError("book_id must be a positive integer.")
     return book_id
 
@@ -155,7 +247,7 @@ TOOL_DEFINITIONS: tuple[dict[str, object], ...] = (
         "parameters": {
             "type": "object",
             "properties": {
-                "book_id": {"type": "integer", "minimum": 1},
+                "book_id": {"type": "integer", "minimum": 1, "maximum": MAX_BOOK_ID},
             },
             "required": ["book_id"],
         },
@@ -166,7 +258,7 @@ TOOL_DEFINITIONS: tuple[dict[str, object], ...] = (
         "parameters": {
             "type": "object",
             "properties": {
-                "book_id": {"type": "integer", "minimum": 1},
+                "book_id": {"type": "integer", "minimum": 1, "maximum": MAX_BOOK_ID},
             },
             "required": ["book_id"],
         },
@@ -175,6 +267,34 @@ TOOL_DEFINITIONS: tuple[dict[str, object], ...] = (
         "name": "get_current_user_loans",
         "description": "Get the authenticated user's active loans and history.",
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "navigate_to_page",
+        "description": (
+            "Navigate the user to a safe LibraryOS page. This never borrows, "
+            "returns, creates, edits, or deletes anything. For borrowing a "
+            "specific book, use destination 'book' with its book_id."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "destination": {
+                    "type": "string",
+                    "enum": [
+                        "catalog",
+                        "book",
+                        "loans",
+                        "friends",
+                        "people",
+                        "profile",
+                        "assistant",
+                    ],
+                },
+                "book_id": {"type": "integer", "minimum": 1, "maximum": MAX_BOOK_ID},
+            },
+            "required": ["destination"],
+            "additionalProperties": False,
+        },
     },
 )
 
@@ -209,20 +329,31 @@ def execute_tool(
                 "The current-user loan tool does not accept a user id."
             )
         return get_current_user_loans(context.db, context.current_user)
+    if name == "navigate_to_page":
+        return navigate_to_page(
+            context.db,
+            str(values.get("destination", "")),
+            book_id=values.get("book_id"),
+        )
     raise ToolInputError("Unknown assistant tool.")
 
 
 __all__ = [
     "AuthenticatedToolContext",
+    "MAX_BOOK_ID",
+    "MAX_LOAN_RESULTS",
     "MAX_TOOL_RESULTS",
     "TOOL_DEFINITIONS",
     "ToolAuthorizationError",
     "ToolContext",
     "ToolInputError",
+    "canonical_navigation_action",
     "execute_tool",
     "get_book_availability",
     "get_book_details",
     "get_current_user_loans",
+    "navigate_to_page",
+    "normalize_navigation_destination",
     "search_catalog",
     "tool_definitions",
 ]

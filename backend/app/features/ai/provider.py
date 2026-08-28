@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
+import json
 import logging
 from typing import Any, Protocol
 
@@ -17,10 +18,13 @@ from google.genai import types
 
 from app.core.config import Settings, get_settings
 from app.features.ai.telemetry import log_event
+from app.features.ai.tools import canonical_navigation_action
 
 
 logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
+MAX_TOOL_CALLS_PER_ROUND = 5
+MAX_TOOL_RESPONSE_CHARS = 12_000
 
 
 class AIProviderError(Exception):
@@ -490,6 +494,98 @@ class GeminiProvider:
             )
         return calls
 
+    @staticmethod
+    def _safe_navigation_action(result: object) -> dict[str, object] | None:
+        """Expose only the validated internal navigation payload to the UI."""
+
+        return canonical_navigation_action(result)
+
+    @staticmethod
+    def _bounded_tool_response(result: object) -> tuple[dict[str, object], bool]:
+        """Keep provider tool context bounded even if a tool grows later."""
+
+        try:
+            encoded = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+        except (TypeError, ValueError):
+            return {"error": "Tool result was not serializable."}, False
+        if len(encoded) > MAX_TOOL_RESPONSE_CHARS:
+            return {"error": "Tool result exceeded the safe response limit."}, False
+        return {"result": result}, True
+
+    @staticmethod
+    def _initial_content(
+        prompt: str,
+        history: Sequence[dict[str, str]],
+    ) -> types.Content:
+        return types.Content(
+            role="user",
+            parts=[
+                types.Part.from_text(
+                    text=_joined_prompt(
+                        prompt=prompt,
+                        system_instruction=None,
+                        history=history,
+                    )
+                )
+            ],
+        )
+
+    def _function_response_content(
+        self,
+        calls: Sequence[ProviderToolCall],
+        tool_executor: Callable[[str, dict[str, object]], object],
+    ) -> tuple[types.Content, list[dict[str, object]]]:
+        """Execute calls and keep only safe activity metadata for the client."""
+
+        events: list[dict[str, object]] = []
+        function_parts: list[types.Part] = []
+        for call in calls:
+            event: dict[str, object] = {
+                "name": call.name,
+                "status": "completed",
+            }
+            response: dict[str, object]
+            try:
+                result = tool_executor(call.name, call.arguments)
+                response, response_ok = self._bounded_tool_response(result)
+                if not response_ok:
+                    event["status"] = "error"
+                if call.name == "navigate_to_page":
+                    action = self._safe_navigation_action(result)
+                    if action is None:
+                        raise ValueError("The navigation result was not canonical.")
+                    event["action"] = action
+                    log_event(
+                        logger,
+                        logging.INFO,
+                        "gemini_navigation_action_validated",
+                        operation="assistant_navigation",
+                        destination=action["destination"],
+                        path=action["path"],
+                    )
+            except Exception:
+                # Tool details are application data; do not reflect them into a
+                # provider error or log message.
+                event["status"] = "error"
+                response = {"error": "Tool request was denied."}
+            try:
+                function_parts.append(
+                    types.Part.from_function_response(
+                        name=call.name,
+                        response=response,
+                    )
+                )
+            except Exception:
+                event["status"] = "error"
+                function_parts.append(
+                    types.Part.from_function_response(
+                        name=call.name,
+                        response={"error": "Tool request was denied."},
+                    )
+                )
+            events.append(event)
+        return types.Content(role="user", parts=function_parts), events
+
     def generate_with_tools(
         self,
         prompt: str,
@@ -506,11 +602,7 @@ class GeminiProvider:
         round_count = 1
         try:
             config = self._tool_config(tool_definitions, system_instruction)
-            contents: object = _joined_prompt(
-                prompt=prompt,
-                system_instruction=None,
-                history=history,
-            )
+            contents = [self._initial_content(prompt, history)]
             round_count = max(1, min(int(max_rounds), 5))
             for round_number in range(1, round_count + 1):
                 response = self._request_with_retry(
@@ -524,6 +616,18 @@ class GeminiProvider:
                     ),
                 )
                 calls = self._tool_calls(response)
+                if len(calls) > MAX_TOOL_CALLS_PER_ROUND:
+                    log_event(
+                        logger,
+                        logging.ERROR,
+                        "gemini_tool_call_limit_exceeded",
+                        operation="generate_with_tools",
+                        round=round_number,
+                        tool_call_count=len(calls),
+                    )
+                    raise AIProviderError(
+                        "The Gemini provider did not finish the request."
+                    )
                 log_event(
                     logger,
                     logging.INFO,
@@ -560,36 +664,16 @@ class GeminiProvider:
                 candidates = getattr(response, "candidates", None) or []
                 if candidates:
                     response_content = getattr(candidates[0], "content", None)
-                response_parts = []
                 if response_content is not None:
-                    response_parts.append(response_content)
-                function_parts = []
-                for call in calls:
-                    event: dict[str, object] = {
-                        "name": call.name,
-                        "status": "completed",
-                    }
-                    try:
-                        result = tool_executor(call.name, call.arguments)
-                        function_parts.append(
-                            types.Part.from_function_response(
-                                name=call.name,
-                                response={"result": result},
-                            )
-                        )
-                    except Exception:
-                        # Tool details are application data; do not reflect them
-                        # into a provider error or log message.
-                        event["status"] = "error"
-                        function_parts.append(
-                            types.Part.from_function_response(
-                                name=call.name,
-                                response={"error": "Tool request was denied."},
-                            )
-                        )
-                    events.append(event)
-                response_parts.append(types.Content(role="user", parts=function_parts))
-                contents = response_parts
+                    contents.append(response_content)
+                function_content, round_events = self._function_response_content(
+                    calls,
+                    tool_executor,
+                )
+                events.extend(round_events)
+                # The legacy generate-content endpoint used by this provider
+                # accepts function responses in a user-role content block.
+                contents.append(function_content)
         except AIProviderError:
             raise
         except Exception as exc:
@@ -609,6 +693,190 @@ class GeminiProvider:
             logging.ERROR,
             "gemini_tool_orchestration_exhausted",
             operation="generate_with_tools",
+            round_count=round_count,
+            tool_event_count=len(events),
+        )
+        raise AIProviderError("The Gemini provider did not finish the request.")
+
+    def stream_with_tools(
+        self,
+        prompt: str,
+        *,
+        tool_definitions: Sequence[Mapping[str, object]],
+        tool_executor: Callable[[str, dict[str, object]], object],
+        system_instruction: str | None = None,
+        history: Sequence[dict[str, str]] = (),
+        max_rounds: int = 3,
+    ) -> Iterator[tuple[str, object]]:
+        """Stream text while handling complete legacy function-call chunks."""
+
+        events: list[dict[str, object]] = []
+        round_count = 1
+        try:
+            config = self._tool_config(tool_definitions, system_instruction)
+            contents = [self._initial_content(prompt, history)]
+            round_count = max(1, min(int(max_rounds), 5))
+            for round_number in range(1, round_count + 1):
+                calls: list[ProviderToolCall] = []
+                response_content = None
+                emitted_text = False
+                for attempt in range(1, MAX_RETRIES + 2):
+                    emitted = False
+                    round_calls: list[ProviderToolCall] = []
+                    round_response_content = None
+                    try:
+                        chunks = self._client_or_raise(
+                            "stream_with_tools"
+                        ).models.generate_content_stream(
+                            model=self._model,
+                            contents=contents,
+                            config=config,
+                        )
+                        for chunk in chunks:
+                            emitted = True
+                            chunk_calls = self._tool_calls(chunk)
+                            for call in chunk_calls:
+                                if call not in round_calls:
+                                    round_calls.append(call)
+                            if chunk_calls and round_response_content is None:
+                                candidates = getattr(chunk, "candidates", None) or []
+                                if candidates:
+                                    round_response_content = getattr(
+                                        candidates[0], "content", None
+                                    )
+                            if not chunk_calls:
+                                text = self._stream_text(chunk)
+                                if text:
+                                    emitted_text = True
+                                    yield "token", {"text": text}
+                    except AIProviderError:
+                        raise
+                    except Exception as exc:
+                        rate_limited = self._is_rate_limited(exc)
+                        log_event(
+                            logger,
+                            logging.WARNING if rate_limited else logging.ERROR,
+                            "gemini_request_failed",
+                            operation="stream_with_tools",
+                            attempt=attempt,
+                            max_retries=MAX_RETRIES,
+                            key_index=self._key_index + 1,
+                            key_count=len(self._api_keys),
+                            rate_limited=rate_limited,
+                            error_type=type(exc).__name__,
+                            status_code=self._status_code(exc),
+                            partial_response=emitted,
+                        )
+                        if not rate_limited or emitted:
+                            raise AIProviderError(
+                                "The Gemini provider is temporarily unavailable."
+                            ) from None
+                        if attempt > MAX_RETRIES:
+                            log_event(
+                                logger,
+                                logging.ERROR,
+                                "gemini_request_exhausted",
+                                operation="stream_with_tools",
+                                attempt=attempt,
+                                max_retries=MAX_RETRIES,
+                                key_index=self._key_index + 1,
+                                key_count=len(self._api_keys),
+                            )
+                            raise AIProviderError(
+                                "The Gemini provider is temporarily unavailable after rate limits."
+                            ) from None
+                        self._advance_key("stream_with_tools", attempt)
+                        continue
+
+                    calls = round_calls
+                    response_content = round_response_content
+                    log_event(
+                        logger,
+                        logging.INFO,
+                        "gemini_request_succeeded",
+                        operation="stream_with_tools",
+                        attempt=attempt,
+                        max_retries=MAX_RETRIES,
+                        key_index=self._key_index + 1,
+                        key_count=len(self._api_keys),
+                        partial_response=emitted,
+                    )
+                    break
+
+                log_event(
+                    logger,
+                    logging.INFO,
+                    "gemini_tool_round_completed",
+                    operation="stream_with_tools",
+                    round=round_number,
+                    tool_call_count=len(calls),
+                )
+                if len(calls) > MAX_TOOL_CALLS_PER_ROUND:
+                    log_event(
+                        logger,
+                        logging.ERROR,
+                        "gemini_tool_call_limit_exceeded",
+                        operation="stream_with_tools",
+                        round=round_number,
+                        tool_call_count=len(calls),
+                    )
+                    raise AIProviderError(
+                        "The Gemini provider did not finish the request."
+                    )
+                if not calls:
+                    if not emitted_text:
+                        log_event(
+                            logger,
+                            logging.ERROR,
+                            "gemini_response_empty",
+                            operation="stream_with_tools",
+                            key_index=self._key_index + 1,
+                            key_count=len(self._api_keys),
+                        )
+                        raise AIProviderError(
+                            "The Gemini provider returned an empty response."
+                        )
+                    log_event(
+                        logger,
+                        logging.INFO,
+                        "gemini_tool_request_completed",
+                        operation="stream_with_tools",
+                        round=round_number,
+                        tool_event_count=len(events),
+                    )
+                    return
+                if response_content is None:
+                    raise AIProviderError(
+                        "The Gemini provider did not return a function-call response."
+                    )
+                function_content, round_events = self._function_response_content(
+                    calls,
+                    tool_executor,
+                )
+                events.extend(round_events)
+                for event in round_events:
+                    yield "tool", event
+                contents.append(response_content)
+                contents.append(function_content)
+        except AIProviderError:
+            raise
+        except Exception as exc:
+            log_event(
+                logger,
+                logging.ERROR,
+                "gemini_tool_orchestration_failed",
+                operation="stream_with_tools",
+                error_type=type(exc).__name__,
+            )
+            raise AIProviderError(
+                "The Gemini provider is temporarily unavailable."
+            ) from None
+
+        log_event(
+            logger,
+            logging.ERROR,
+            "gemini_tool_orchestration_exhausted",
+            operation="stream_with_tools",
             round_count=round_count,
             tool_event_count=len(events),
         )

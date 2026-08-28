@@ -37,6 +37,8 @@ _SAFE_FIELDS = {
     "to_key_index",
     "tool_call_count",
     "tool_event_count",
+    "destination",
+    "path",
     "error_type",
 }
 

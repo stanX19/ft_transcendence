@@ -246,6 +246,7 @@ def assemble_context(
         source = result.source
         block = (
             f"[{position}] {result.title}\n"
+            f"Book ID: {result.book_id}\n"
             f"Author: {result.author}\n"
             f"Category: {result.category}\n"
             f"Description: {_trim(result.description, per_book_chars)}"

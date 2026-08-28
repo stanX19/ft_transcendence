@@ -273,6 +273,8 @@ export const en = {
   "assistant.tool.getBookDetails": "Get book details",
   "assistant.tool.getBookAvailability": "Get book availability",
   "assistant.tool.getCurrentUserLoans": "Get current user loans",
+  "assistant.tool.navigateToPage": "Open LibraryOS page",
+  "assistant.failed": "Not completed",
   "profile.eyebrow": "Your account",
   "profile.title": "Your profile",
   "profile.description": "Keep the public details that help other readers recognize you.",

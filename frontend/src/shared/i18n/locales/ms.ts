@@ -275,6 +275,8 @@ export const ms = {
   "assistant.tool.getBookDetails": "Dapatkan butiran buku",
   "assistant.tool.getBookAvailability": "Dapatkan ketersediaan buku",
   "assistant.tool.getCurrentUserLoans": "Dapatkan pinjaman pengguna semasa",
+  "assistant.tool.navigateToPage": "Buka halaman LibraryOS",
+  "assistant.failed": "Tidak selesai",
   "profile.eyebrow": "Akaun anda",
   "profile.title": "Profil anda",
   "profile.description": "Simpan butiran awam yang membantu pembaca lain mengenali anda.",

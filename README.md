@@ -54,6 +54,12 @@ docker compose cp web:/etc/nginx/certs/localhost.crt ./localhost.crt
 Never copy or import the private key. The certificate covers `localhost` and
 `127.0.0.1`; use the matching hostname when opening the application.
 
+With `SEED_DEMO_DATA=true`, startup deterministically creates 600 catalog
+records from the checked-in generator in `backend/app/seed.py`. The records
+are not stored in Git as a database dump: a teammate cloning the repository
+gets the same catalog by running `docker compose up --build`, while their
+PostgreSQL named volume remains local to their machine.
+
 The API is intentionally not published as a host port. Browser traffic goes
 through Nginx over HTTPS, and backend secrets remain in the API container.
 
@@ -95,8 +101,11 @@ shared or production deployment and never reuse these passwords.
   assistant through credentialed POST-SSE streaming `fetch()`. Configure
   `GEMINI_API_KEY_LIST` as a JSON array in `.env`; the provider advances to
   the next key only on HTTP 429, wraps around, and allows three retries after
-  the initial request. AI lifecycle logs expose only event names, correlation
-  IDs, key indexes, counts, and safe error types.
+  the initial request. The assistant tools are read-only: catalog details,
+  current availability, the authenticated user's loans, and safe internal
+  page navigation. Navigation only emits a canonical route; borrowing still
+  happens explicitly on the book detail page. AI lifecycle logs expose only
+  event names, correlation IDs, key indexes, counts, and safe error types.
 
 ## Architecture
 
@@ -159,8 +168,10 @@ submission.
   validation, row-level errors, and transactional writes.
 - PostgreSQL full-text catalog retrieval, bounded RAG context, Gemini
   provider isolation, safe tool dispatch, authenticated POST-SSE streaming,
-  per-user AI rate limiting, and the `/assistant` React page with visible
-  source books, loading, error, and tool-activity states.
+  per-user AI rate limiting, safe assistant navigation, and the `/assistant`
+  React page with visible source books, loading, error, and tool-activity
+  states. This slice deliberately does not create embeddings or a vector
+  database; the catalog's PostgreSQL full-text index is the retrieval store.
 
 ## Verification
 
